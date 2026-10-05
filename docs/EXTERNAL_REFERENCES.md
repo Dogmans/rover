@@ -24,6 +24,25 @@ These are the primary vendor and platform references used to shape the configura
 - Foxglove Bridge overview and remote access: https://docs.foxglove.dev/docs/fleet/bridge
 - ROS 2 getting started: https://docs.foxglove.dev/docs/getting-started/frameworks/ros2
 
+## Action models and local vision-language models
+
+- Qwen3-VL model family and inference: https://github.com/QwenLM/Qwen3-VL
+- Cloudflare Clef and Clef-Flash announcement: https://blog.cloudflare.com/clef-decision-models/
+- Cloudflare Clef model card: https://huggingface.co/Cloudflare/clef
+- Cloudflare Clef-Flash model card: https://huggingface.co/Cloudflare/clef-flash
+- Cloudflare Workers AI Clef deployment docs: https://developers.cloudflare.com/workers-ai/models/clef/
+- TypeSafe / Jev model documentation: https://docs.typesafe.ai/models
+- TypeSafe System One concepts: https://docs.typesafe.ai/concepts/system-one
+- Hugging Face LeRobot VLA-JEPA documentation: https://huggingface.co/docs/lerobot/main/vla_jepa
+- Hugging Face LeRobot SmolVLA documentation: https://huggingface.co/docs/lerobot/main/smolvla
+- OpenVLA research implementation: https://github.com/openvla/openvla
+- Physical Intelligence open π models: https://github.com/Physical-Intelligence/openpi
+- Meta V-JEPA 2 research and checkpoints: https://github.com/facebookresearch/vjepa2
+- LeRobot robotics models, datasets, and policy framework: https://github.com/huggingface/lerobot
+- ROS 2 Navigation (Nav2): https://github.com/ros-navigation/navigation2
+
+The rover-specific assessment and recommendation are recorded in [ACTION_MODEL_RESEARCH.md](ACTION_MODEL_RESEARCH.md). Model availability, checkpoints, hardware requirements, and licenses can change; recheck upstream documentation before selecting or deploying a model.
+
 ## Notes from the official references
 
 - Waveshare UGV02 exposes UART/JSON control to the host computer, and the host communicates with the ESP32 over GPIO UART at 115200 baud.

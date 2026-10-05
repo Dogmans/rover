@@ -28,5 +28,6 @@ See [docs/PROJECT_NOTES.md](docs/PROJECT_NOTES.md) for the detailed implementati
 ## Setup plan
 
 - [docs/ROS_ARCHITECTURE.md](docs/ROS_ARCHITECTURE.md) — ROS nodes, command/data flows, ownership, and failure behavior
+- [docs/ACTION_MODEL_RESEARCH.md](docs/ACTION_MODEL_RESEARCH.md) — researched model options and recommended PC-side action-planning approach
 - [docs/PI5_ROS_ESP32_SETUP_PLAN.md](docs/PI5_ROS_ESP32_SETUP_PLAN.md) — step-by-step Pi 5, ROS 2, and ESP32 commissioning plan
 - [docs/EXTERNAL_REFERENCES.md](docs/EXTERNAL_REFERENCES.md) — the vendor and platform references that informed the plan

@@ -15,21 +15,21 @@ This document defines the intended communication architecture for the UGV02 prot
 ```mermaid
 flowchart LR
     Operator[Operator]
-    PC[Remote PC\nFoxglove Studio + optional autonomy]
+    PC[Remote PC\noperator app + model / autonomy]
     WiFi((Local Wi-Fi\nROS 2 / DDS))
     Pi[Raspberry Pi 5\nonboard ROS 2]
     Camera[Camera Module 3 Wide]
-    Bridge[foxglove_bridge\nROS 2 to WebSocket]
+    Bridge[optional foxglove_bridge\nROS 2 to WebSocket]
+    Studio[optional Foxglove Studio\ndiagnostics and visualization]
     ESP[Waveshare ESP32\nlow-level controller]
     Drive[Motors / encoders]
     Safety[Hardware stop / power removal\nif fitted or added]
 
-    Operator -->|goals, teleoperation| PC
+    Operator -->|chat, joystick| PC
     Camera -->|CSI images| Pi
     PC <-->|ROS 2 topics, services, actions| WiFi
     WiFi <-->|ROS 2 topics, services, actions| Pi
-    PC -->|Foxglove WebSocket\noperator inputs| Bridge
-    Bridge -->|Foxglove WebSocket\nvisualization and telemetry| PC
+    Studio <-->|optional diagnostics| Bridge
     Bridge --- Pi
     Pi <-->|UART JSON, provisional 115200 baud| ESP
     ESP <-->|motor outputs, feedback| Drive
@@ -40,19 +40,27 @@ The Pi is the boundary between networked autonomy and the physical base. It must
 
 ## ROS deployment and node graph
 
-The following graph shows the planned nodes and topic direction. Names are logical names, not frozen ROS names. Foxglove Studio is the remote operator and visualization application; `foxglove_bridge` runs on the Pi and exposes selected ROS 2 data over WebSocket. Autonomy nodes are separate ROS 2 processes and may run alongside Studio on the PC. The base driver may be a vendor ROS node or a project adapter, depending on the verified firmware interface.
+The following graph shows the planned nodes and topic direction. Names are logical names, not frozen ROS names. The project PC operator application is the primary user interface for conversational task requests, joystick teleoperation, and robot camera/status. It talks to PC-side mission and teleoperation components; those components use ROS 2/DDS for robot communication. Foxglove Studio and `foxglove_bridge` are optional development and diagnostics tools, not runtime requirements for the operator app. The base driver may be a vendor ROS node or a project adapter, depending on the verified firmware interface.
 
 ```mermaid
 flowchart LR
     subgraph PC[Remote PC]
-        Studio[Foxglove Studio\nvisualization, inspection, teleop]
+        App[operator application\nchat, joystick, 2D map, camera and status]
+        Studio[optional Foxglove Studio\nROS diagnostics]
+        Gamepad[USB joystick]
+        Joy[joy driver]
+        Teleop[teleop_twist_joy]
         Perception[perception node]
-        Mission["mission / action policy (TBD)<br/>implementation and role not yet defined"]
+        Mission[PC mission executive\nmodel-backed task planning]
         Nav[autonomy navigation stack\ngoal planner + motion controller]
         Model[optional separate model process\nmay instead be part of action policy]
+        MapContext[map context + annotation proposals]
+        App -->|manual input| Teleop
+        Gamepad -->|optional HID input| Joy
+        Joy -->|/joy| Teleop
         Perception -->|detections / scene| Mission
         Model -->|optional model output / proposals| Mission
-        Mission -->|high-level goals / actions| Nav
+        Mission -->|task and navigation goals| Nav
     end
 
     subgraph Pi[Raspberry Pi 5]
@@ -63,34 +71,57 @@ flowchart LR
         Base[base driver / serial adapter]
         Odom[odometry source]
         Diagnostics[diagnostics + health]
+        Mapping[SLAM / localization\nmethod and sensors TBD]
+        MapStore[versioned geometric map\n+semantic annotation layer]
         Mux -->|/cmd_vel_safe| Base
         Base -->|UART JSON| ESP[ESP32 firmware]
         ESP -->|UART status / encoder data| Base
         Base -->|/joint_states, base status| Odom
         Odom -->|/odom| State
+        Odom -->|odometry input| Mapping
+        Mapping -->|map, pose, map->odom TF| MapStore
         Base -->|/diagnostics, /base/status| Diagnostics
         Camera -->|camera TF static transform| State
     end
 
-    Studio -->|/cmd_vel_teleop\nover Foxglove WebSocket| Bridge
-    Bridge -->|/cmd_vel_teleop| Mux
-    Studio -->|mission goal / action\nover Foxglove WebSocket| Bridge
-    Bridge -->|mission goal / action| Mission
-    Bridge -->|selected ROS data| Studio
+    Teleop -->|/cmd_vel_teleop\nROS 2 / DDS| Mux
+    Studio <-->|optional ROS diagnostics| Bridge
     Camera -->|/camera/image_raw\n/camera/camera_info| Perception
+    Camera -->|selected frames| MapContext
+    MapStore -->|map version, pose, semantic context| MapContext
+    MapContext -->|validated annotation update| MapStore
+    MapStore -->|map, pose, semantic labels, task view| App
     Nav -->|/cmd_vel_auto| Mux
     State -->|/tf, /tf_static| Studio
     Odom -->|/odom| Studio
     Diagnostics -->|health/status| Studio
 ```
 
-Foxglove is not the mission planner. Studio is an operator-facing application for viewing ROS data, inspecting the graph, and optionally sending explicit operator inputs such as teleoperation commands or a mission goal. The bridge transports those inputs and selected ROS data; it does not decide what the robot should do. Autonomy ROS nodes exchange data directly over ROS 2/DDS and should not depend on the Studio process being open.
+The project operator application is the primary user-facing app. Its initial scope is typed conversational task input, joystick teleoperation, a task-focused 2D map, and camera/robot/task status, with manual versus autonomy ownership made explicit. The map view should show the geometric occupancy map, robot pose/heading and localization health, semantic room/landmark annotations, active destination and planned route, and search/task progress. It reads the same versioned map and ROS navigation interfaces used by the mission executive; it must not become a second map authority. A simple room-label/edit action can support setup and recovery, but routine autonomous discovery should not require manual annotation. Voice input and the choice of desktop or web framework are open. The app submits semantic requests to the PC mission executive; it does not publish model-generated motor commands. The mission executive translates requests into bounded robot actions or navigation goals, monitors feedback, and can cancel or replan.
 
-### Mission / action policy: open design
+Foxglove Studio remains useful during bring-up for quickly inspecting raw ROS topics, occupancy grids, images, transforms, and diagnostics. Keep it optional: it is a development/debugging tool, not the normal operator UI. The custom app should present the smaller task-focused 2D map and controls an operator needs without requiring Foxglove or its bridge. `foxglove_bridge` is only needed when using Studio or another Foxglove client.
 
-The mission/action-policy box is intentionally unresolved; it does not commit the project to a conventional deterministic mission executive. It could be an AI action model, a behavior tree or state machine, a task planner, a hybrid of these, or a different high-level decision component. The implementation may be one ROS node or multiple nodes, and the model may be embedded in that component or called as a separate service.
+For a physical USB joystick connected to the PC, the proposed default is `joy` to read the device and publish `/joy`, followed by `teleop_twist_joy` to map axes/buttons into `/cmd_vel_teleop`. That topic crosses the network directly over ROS 2/DDS to the Pi's command mux and safety gate, not through Foxglove. Configure a deadman/enable control and command timeout; the Pi remains responsible for rejecting stale input and stopping safely.
 
-The architecture only requires a stable boundary: this component consumes goals and relevant state/perception, then requests high-level actions or navigation goals. Its outputs are not trusted motor commands. They must pass through the navigation/control path and the Pi's command mux and safety gate. The model, policy, action vocabulary, validation rules, and recovery behavior all remain to be defined.
+### Collaborative mapping and semantic annotations
+
+The Pi is the operational source of truth for geometric mapping and localization: its selected SLAM/localization stack estimates robot pose and maintains the metric map used for navigation. Persist that map on the Pi. Sensor inputs and the specific mapping method remain open; the Camera Module 3 Wide is monocular RGB and does not itself provide a depth point cloud, while encoder availability and odometry quality still need hardware verification.
+
+The PC model can help annotate the map, but it does not write raw geometry. The Pi sends the PC current pose, map identity/version, relevant semantic context, and selected camera frames (not necessarily a full point cloud or every video frame). The multimodal model may propose a structured annotation such as `room_candidate: kitchen`, a visible landmark, or an object observation with image/frame reference and confidence. A deterministic map manager checks coordinate frame, map version, pose validity, freshness, and schema. Supported annotations can be committed automatically when they meet configured evidence/confidence rules, for example consistent detections from multiple localized viewpoints. Low-confidence evidence triggers another bounded observation/recovery step before operator escalation; operator approval is not a routine prerequisite.
+
+Keep semantic annotations in a versioned sidecar/layer associated with the geometric map, rather than mixing model-generated labels into occupancy values or treating conversational history as map storage. Example records include named room regions, landmark labels, and time-stamped object observations with confidence and source frame. The Pi persists the canonical map plus semantic layer; the PC may cache or back them up. Map metadata and updates can pass bidirectionally over ROS 2/DDS using low-rate topics and a validated service/action. Bulk map or point-cloud transfer is only needed when a consumer actually requires it. On network loss, the Pi retains its last committed map and the robot must not assume uncommitted model proposals exist.
+
+The target runtime is autonomous mapping/exploration using the validated Pi mapping/localization and navigation stack, with the PC model supervising semantic discovery. During early commissioning, low-speed attended tests and a ready physical stop are still required until mapping, localization, and base safety are verified; this is a hardware-validation precaution, not an intended requirement to teleoperate every mapping pass. A single image can suggest “this looks like a kitchen,” but it cannot establish a persistent map coordinate without localization and a geometrically grounded pose.
+
+For a request such as “go to the kitchen,” the PC mission executive looks up `kitchen` in the semantic map layer and checks that the annotation belongs to the current map version and has a usable region or navigation goal. The model can help interpret an ambiguous label or visual cue, but it should not calculate the geometric route. The mission executive submits the resolved goal to the ROS navigation stack, which plans a path over the geometric map and executes it through the normal command/safety path. The model need not stay in the motion loop; it can wait for action feedback and be consulted again if the destination is ambiguous, navigation reports blocked/failure, or a new observation is needed.
+
+If no kitchen annotation exists but a usable geometric map and localization are available, the mission executive launches a bounded first-run semantic discovery task by default. It asks the navigation stack to visit selected, reachable scan viewpoints; at each point, the PC model inspects selected camera frames and proposes whether the view belongs to a kitchen, with evidence and confidence tied to the current robot pose and map version. The model supervises at the task level by choosing whether to inspect another viewpoint or conclude; the navigation stack handles route planning and movement. The mission executive limits search area/time and tries configured recovery steps if evidence is ambiguous, coverage is incomplete, or navigation fails. It commits a supported proposal automatically. Contact the operator only when the bounded search/recovery budget is exhausted, the destination remains unresolved, or a safety/health condition requires intervention. Later “go to the kitchen” requests resolve from the saved annotation without repeating discovery. If localization or a geometric map is unavailable, the autonomous mapping/exploration capability must first be established and validated; do not send an ungrounded room goal.
+
+### PC mission executive and robot actions
+
+The recommended design uses one local PC-side multimodal model for conversational interpretation, camera-image understanding, and proposing the next item from an allowlisted task/skill API. The detected PC has an NVIDIA RTX 2080 Ti with 11 GiB VRAM; Qwen3-VL Instruct 4B with supported 4-bit quantization is the initial benchmark target, subject to measured memory and latency. Deterministic mission logic validates and sequences the proposed actions; conventional ROS navigation controls movement. The Pi does not need a language model or semantic understanding of goals such as “find the sock.” No separate Jev/Clef decision model is planned for v1. See [ACTION_MODEL_RESEARCH.md](ACTION_MODEL_RESEARCH.md).
+
+The PC translates semantic goals into bounded actions the robot can execute, such as a relative turn or navigation to a pose, and uses action feedback and selected camera observations to decide what to do next. These are task-level goals, not a stream of model-generated velocity commands. The navigation stack handles continuous control and obstacle avoidance; the Pi's command mux and safety gate validate motion requests locally. Network loss, stale commands, faults, or cancellation must result in a safe stop.
 
 The navigation stack is shown as a separate role to make the safety boundary visible, not to lock in Nav2 or a specific planner. It would turn an accepted navigation goal into motion requests such as `/cmd_vel_auto`; whether this is Nav2, custom software, or part of a future combined policy is open. Its location (PC or Pi) is also undecided.
 
@@ -115,10 +146,12 @@ These are proposed logical interfaces. Confirm message types, names, units, rate
 
 | Interface | Direction | Owner | Purpose |
 |---|---|---|---|
-| `/cmd_vel_teleop` (`geometry_msgs/msg/Twist`) | PC -> Pi | Teleop | Manual velocity request; never connected directly to the serial port |
+| `/joy` (`sensor_msgs/msg/Joy`) | PC internal | `joy` driver | Raw joystick axes and buttons consumed by the teleop mapper |
+| `/cmd_vel_teleop` (`geometry_msgs/msg/Twist`) | PC -> Pi | `teleop_twist_joy` | Manual velocity request over ROS 2/DDS; never connected directly to the serial port |
 | `/cmd_vel_auto` (`geometry_msgs/msg/Twist`) | Autonomy stack -> Pi | Navigation controller | Autonomy velocity request; subject to onboard arbitration and limits |
 | `/cmd_vel_safe` (`geometry_msgs/msg/Twist`) | Pi internal | Command mux/safety gate | Sole velocity command consumed by the base driver |
-| Mission goal/action (interface TBD) | Operator UI -> mission executive | Mission executive | High-level task input; not a motor command and not consumed by the velocity mux |
+| Mission request and action feedback (interface TBD) | Operator app <-> PC mission executive | Mission executive | Semantic user request and task progress/results; not a motor command |
+| Robot task/navigation action (interface TBD) | PC mission/navigation -> Pi action interface | Pi action server or navigation stack | Bounded movement goal, cancellation, feedback, and result; exact ROS action contract TBD |
 | `/camera/image_raw` (`sensor_msgs/msg/Image`) | Pi -> PC | Camera driver | Camera frames; transport/QoS should be chosen for bandwidth and latency |
 | `/camera/camera_info` (`sensor_msgs/msg/CameraInfo`) | Pi -> PC | Camera driver | Camera calibration accompanying the image stream |
 | `/joint_states` (`sensor_msgs/msg/JointState`) | Pi -> consumers | Base driver | Wheel position/velocity if the ESP32 exposes usable encoder data |
@@ -126,6 +159,8 @@ These are proposed logical interfaces. Confirm message types, names, units, rate
 | `/tf`, `/tf_static` | Pi -> PC | State publisher / odometry | Robot and sensor frame tree |
 | `/base/status` (proposed custom message or diagnostics) | Pi -> PC | Base driver | Connection state, firmware identity, measured values, and fault state |
 | `/diagnostics` (`diagnostic_msgs/msg/DiagnosticArray`) | Pi -> PC | Drivers and health monitor | Component health, stale-data and hardware faults |
+| Geometric map and localization (ROS map/TF interfaces TBD) | Pi -> PC | Pi mapping/localization stack | Versioned metric map and robot pose used for navigation and grounding observations |
+| Semantic map annotation (service/action or custom interface TBD) | PC -> Pi; committed state Pi -> PC | Pi map manager | Validated room/landmark/object annotations associated with a map version and coordinate frame |
 
 Command timestamps and expiry must be explicit. `Twist` itself has no header, so use a stamped command type or a companion timestamp/lease mechanism at the PC-to-Pi boundary. Do not treat DDS delivery as proof that a command is fresh.
 
@@ -161,6 +196,9 @@ Protocol facts such as JSON framing, line endings, command fields, heartbeat tim
 - Base driver: serial connection lifecycle, protocol conversion, board identification, and raw base feedback.
 - ESP32 firmware: motor control loop and firmware watchdog, subject to verified capabilities.
 - Odometry source: exactly one source publishes the authoritative `/odom` and corresponding `odom -> base_link` transform.
+- Mapping/localization stack: owns the geometric map, map frame, robot pose estimate, and map version. It must not accept unvalidated model writes to occupancy geometry.
+- Pi map manager: owns persistent geometric/semantic map files and validates annotation updates. The PC may cache/backup committed versions.
+- PC perception/model: proposes semantic annotations from selected images and robot/map context; proposals include confidence and evidence and are not authoritative until accepted by the map manager.
 - `robot_state_publisher`: publishes the URDF-defined fixed and articulated robot transforms; it does not estimate odometry.
 - Planner/model: produces intent or bounded motion requests; it does not access UART or motor outputs.
 
@@ -194,7 +232,7 @@ A software zero-velocity command is not a substitute for a physical E-stop or a 
 3. Start camera driver and robot description/state publisher.
 4. Start command mux/safety gate in a disarmed state.
 5. Start remote ROS 2 nodes and verify discovery, topics, timestamps, and QoS.
-6. Explicitly arm manual low-speed testing; autonomy remains disabled.
+6. Explicitly arm manual low-speed testing; autonomy remains disabled. The operator app may be added after the underlying teleop and action interfaces are validated.
 7. Validate timeout, stop, disconnect, process-exit, and E-stop behavior before normal operation.
 
 Exact launch files and arming interface are implementation work and depend on the verified board protocol and chosen ROS distribution.
@@ -208,6 +246,8 @@ Exact launch files and arming interface are implementation work and depend on th
 - Availability and meaning of encoder/IMU feedback, and whether odometry is computed on the ESP32 or Pi.
 - Camera ROS driver, image transport, and calibration storage.
 - Custom message definitions for base status and stamped/leased velocity commands.
+- Operator app framework, app-to-mission interface, and which camera/status views it needs.
+- PC model provider (local, cloud, or selectable) and the approved task/action vocabulary.
 - Required physical E-stop and motor power isolation for the prototype.
 
 ## First integration milestones
@@ -220,6 +260,8 @@ Exact launch files and arming interface are implementation work and depend on th
 6. Add command muxing and source ownership; test stale and conflicting commands.
 7. Establish one odometry and TF authority from measured hardware behavior.
 8. Run an end-to-end low-speed test with a human at the physical stop.
+9. Define and test bounded robot actions with feedback, cancellation, and failure results.
+10. Build the PC operator app for joystick, camera/status, and conversational task requests; keep Foxglove optional for diagnostics.
 
 ## Diagram source
 

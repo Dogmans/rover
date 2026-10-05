@@ -12,7 +12,7 @@ Create a capable outdoor rover platform with a staged development path:
 
 ## Architecture target
 
-- Remote PC: model inference, perception, planning, and higher-level action selection
+- Remote PC: operator application, model inference, perception, planning, and higher-level action selection
 - ROS 2 over Wi-Fi: command, status, and telemetry transport between PC and robot
 - Raspberry Pi 5: onboard controller and ROS 2 host
 - Waveshare ESP32 board: low-level motor control, encoders, and chassis interface
@@ -49,6 +49,12 @@ These are not to be assumed settled without fresh validation.
 - Use ordinary Pi camera support and a ROS camera driver rather than legacy camera utilities.
 - Prefer a clean hardware abstraction so the robot base can later be swapped without rewriting the autonomy model interface.
 - Keep semantic model decisions separate from low-level drive and safety control.
+- Build a PC operator application as an explicit project feature, with conversational task input, joystick teleoperation, a 2D map with semantic annotations, and camera/robot/task status.
+- Keep the model and task planning on the PC; the Pi receives bounded robot actions and retains local command validation and safe-stop authority.
+- Let the Pi mapping/localization stack own the geometric map and robot pose. Let the PC multimodal model propose room/landmark/object annotations from selected camera observations; validate and store these in a versioned semantic map layer on the Pi, with a PC backup.
+- Treat Foxglove Studio as an optional ROS visualization and diagnostics tool, not as the required operator application.
+- Use one local multimodal model on the PC for conversation, image interpretation, and proposing allowlisted skills. The detected PC GPU is an NVIDIA RTX 2080 Ti with 11 GiB VRAM; start by benchmarking a supported 4-bit Qwen3-VL Instruct 4B configuration. Keep deterministic mission logic, ROS navigation, robot drivers, and Pi safety controls as ordinary software, not additional models. See [ACTION_MODEL_RESEARCH.md](ACTION_MODEL_RESEARCH.md) for the model assessment.
+- Target autonomous map building and semantic discovery: the PC model supervises bounded search and proposes room/landmark annotations; the Pi mapping/navigation stack owns geometry and movement. Escalate to the operator only when bounded search/recovery fails or safety/health requires intervention. Attended commissioning is a temporary hardware-validation precaution, not routine teleoperation.
 
 ### Control and autonomy
 
@@ -70,6 +76,11 @@ These are not to be assumed settled without fresh validation.
 8. Develop command freshness, watchdog, and safe-stop behavior.
 9. Add camera-first experiments and localisation trials.
 10. Preserve a stable robot abstraction for future large-cart hardware.
+11. Define the operator-app-to-mission and mission-to-robot interfaces, including bounded actions, feedback, cancellation, and faults.
+12. Build the PC operator application with joystick control, a task-focused 2D map, camera/task/robot status, and explicit manual/autonomy ownership; keep it out of the initial hardware commissioning critical path. Use Foxglove during bring-up to inspect raw ROS data rather than making it the operator app.
+13. Add conversational task input through one local PC-side multimodal model. Benchmark Qwen3-VL Instruct 4B with a supported 4-bit runtime on the RTX 2080 Ti; test a smaller checkpoint if memory or latency is inadequate. Test simple actions before visual search tasks. Confirm usable memory, end-to-end latency, and accuracy on the actual camera stream before fixing the deployment configuration.
+14. Select and validate the mapping/localization sensor stack. Establish Pi-owned geometric map persistence and a separate semantic annotation layer that can be proposed by the PC model and committed through a validated ROS interface.
+15. Implement autonomous semantic discovery over the validated map/localization stack, including bounded viewpoint search, evidence-based annotation updates, recovery limits, and failure-only operator escalation.
 
 ## Unknowns that need explicit handling
 
@@ -78,6 +89,9 @@ These are not to be assumed settled without fresh validation.
 - Whether a custom ROS adapter is needed for the actual Waveshare protocol
 - Whether the current firmware exposes odometry and motor-safety behavior as expected
 - Wi-Fi quality, QoS, and ROS discovery configuration on the local network
+- Operator application platform/framework and its connection to PC-side ROS nodes
+- Model serving runtime, quantization, and measured latency/accuracy for local vision-language inference
+- Mapping/localization method and sensor requirements; semantic-map record format and update/confirmation policy
 - Future large rover steering and drivetrain architecture
 
 ## Success criteria for the prototype
@@ -85,6 +99,8 @@ These are not to be assumed settled without fresh validation.
 - Basic robot movement under ROS 2 is reliable and testable
 - The Pi can receive and publish status, camera feed, and motion commands
 - Safety checks and command freshness are enforced
+- A PC operator application can control the rover manually and submit conversational tasks through bounded robot actions
+- The operator app can display the current geometric map, robot pose, semantic room annotations, active destination/path, and task state from the Pi's map/navigation interfaces
 - Camera-first experiments are possible without a large sensor stack
 - The robot abstraction remains stable for later hardware replacement
 

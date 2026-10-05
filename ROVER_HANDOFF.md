@@ -84,7 +84,7 @@ Wheel encoders remain valuable for speed control and short-term odometry even wi
 
 ## UI
 
-Foxglove is acceptable and of interest; not rejected as overkill. Candidate dashboard: video, pose/map, status, plots and diagnostics using a ROS bridge. RViz2/rqt and keyboard/gamepad teleop are alternatives or supplementary tools. Verify current compatibility/licensing before selecting. Neither dashboard nor network stop button is an independent E-stop.
+The project PC operator application is an explicit feature: conversational task requests, joystick teleoperation, a task-focused 2D map with semantic annotations, and camera/robot/task status, backed by PC-side model and mission components. Its framework and exact ROS-facing interfaces remain open. Foxglove is recommended as an optional bring-up/diagnostics dashboard for raw video, pose/map, status, plots, and ROS inspection; it is not the required chat or operator app. Verify current compatibility/licensing before selecting. Neither the app, a dashboard, nor a network stop button is an independent E-stop.
 
 ## Full-size rover — future scope, not purchased
 
