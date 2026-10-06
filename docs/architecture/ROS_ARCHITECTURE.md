@@ -40,7 +40,7 @@ The Pi is the boundary between networked autonomy and the physical base. It must
 
 ## ROS deployment and node graph
 
-The following graph shows the planned nodes and topic direction. Names are logical names, not frozen ROS names. The project PC operator application is the primary user interface for conversational task requests, joystick teleoperation, and robot camera/status. It talks to PC-side mission and teleoperation components; those components use ROS 2/DDS for robot communication. Foxglove Studio and `foxglove_bridge` are optional development and diagnostics tools, not runtime requirements for the operator app. The base driver may be a vendor ROS node or a project adapter, depending on the verified firmware interface.
+The following graph shows the planned nodes and topic direction. Names are logical names, not frozen ROS names. The project PC operator application is the primary user interface for conversational task requests, joystick teleoperation, and robot camera/status. It talks to PC-side mission and teleoperation components; those components use ROS 2/DDS for robot communication. Foxglove Studio and `foxglove_bridge` are optional development and diagnostics tools, not runtime requirements for the operator app. The project will provide the Pi-side base driver/serial adapter: the current Waveshare `ugv_base_ros` repository is ESP32 firmware, not a ROS 2 host node.
 
 ```mermaid
 flowchart LR
@@ -119,7 +119,7 @@ If no kitchen annotation exists but a usable geometric map and localization are 
 
 ### PC mission executive and robot actions
 
-The recommended design uses one local PC-side multimodal model for conversational interpretation, camera-image understanding, and proposing the next item from an allowlisted task/skill API. The detected PC has an NVIDIA RTX 2080 Ti with 11 GiB VRAM; Qwen3-VL Instruct 4B with supported 4-bit quantization is the initial benchmark target, subject to measured memory and latency. Deterministic mission logic validates and sequences the proposed actions; conventional ROS navigation controls movement. The Pi does not need a language model or semantic understanding of goals such as “find the sock.” No separate Jev/Clef decision model is planned for v1. See [ACTION_MODEL_RESEARCH.md](ACTION_MODEL_RESEARCH.md).
+The recommended design uses one local PC-side multimodal model for conversational interpretation, camera-image understanding, and proposing the next item from an allowlisted task/skill API. The detected PC has an NVIDIA RTX 2080 Ti with 11 GiB VRAM; Qwen3-VL Instruct 4B with supported 4-bit quantization is the initial benchmark target, subject to measured memory and latency. Deterministic mission logic validates and sequences the proposed actions; conventional ROS navigation controls movement. The Pi does not need a language model or semantic understanding of goals such as “find the sock.” No separate Jev/Clef decision model is planned for v1. See [ACTION_MODEL_RESEARCH.md](../research/ACTION_MODEL_RESEARCH.md).
 
 The PC translates semantic goals into bounded actions the robot can execute, such as a relative turn or navigation to a pose, and uses action feedback and selected camera observations to decide what to do next. These are task-level goals, not a stream of model-generated velocity commands. The navigation stack handles continuous control and obstacle avoidance; the Pi's command mux and safety gate validate motion requests locally. Network loss, stale commands, faults, or cancellation must result in a safe stop.
 
@@ -134,7 +134,7 @@ There is one command path to the base:
 - Teleoperation and autonomy publish separate inputs. They do not publish directly to the serial driver.
 - The mux selects the active owner and rejects commands from inactive sources.
 - The safety gate bounds velocity, rejects stale input, and emits zero velocity on timeout, fault, or loss of command ownership.
-- The base driver owns serial framing, protocol translation, response parsing, and hardware-specific limits. It must also enforce a local serial command timeout if supported by the firmware.
+- The base driver owns serial framing, protocol translation, response parsing, and hardware-specific limits. Current UGV02 documentation specifies newline-delimited JSON at 115200 baud; `T=13` uses linear m/s and angular rad/s, while `T=130` requests base feedback and `T=131,cmd=1` enables continuous feedback. The current firmware source sets a 3000 ms heartbeat timeout; verify it on the unit and treat it as a secondary stop only.
 - The ESP32 remains responsible for its low-level motor loop and its own watchdog behavior.
 - A hardware E-stop, where present, overrides every software layer.
 
@@ -239,10 +239,10 @@ Exact launch files and arming interface are implementation work and depend on th
 
 ## Decisions still open
 
-- OS and ROS 2 distribution: pin one compatible combination before implementation; current setup notes discuss Ubuntu 24.04/Jazzy and Raspberry Pi OS as alternatives.
+- Camera capture and ROS publication on the selected Ubuntu image; the project baseline is Ubuntu Server 24.04 ARM64 + ROS 2 Jazzy, subject to passing this early acceptance test.
 - Board variant and firmware: identify ROS Driver versus General Driver and use the matching vendor source/driver.
-- Whether the vendor provides a maintained ROS 2 base node or only a host-side script/protocol example.
-- UART device, pins, framing, JSON schema, command units, heartbeat period, and timeout behavior.
+- Exact Pi-side bridge implementation and ROS package versions; vendor `ugv_base_ros` is ESP32 firmware, not a ROS 2 host driver.
+- Delivered UART device/pinout and firmware version; current docs specify 115200-baud newline JSON, velocity units, and a nominal 3-second firmware timeout, all to be verified on hardware.
 - Availability and meaning of encoder/IMU feedback, and whether odometry is computed on the ESP32 or Pi.
 - Camera ROS driver, image transport, and calibration storage.
 - Custom message definitions for base status and stamped/leased velocity commands.
@@ -265,4 +265,4 @@ Exact launch files and arming interface are implementation work and depend on th
 
 ## Diagram source
 
-The diagrams in this document are Mermaid source and render in compatible Markdown viewers. The architecture is also summarized in [PROJECT_NOTES.md](PROJECT_NOTES.md), while the hardware setup checklist is in [PI5_ROS_ESP32_SETUP_PLAN.md](PI5_ROS_ESP32_SETUP_PLAN.md).
+The diagrams in this document are Mermaid source and render in compatible Markdown viewers. The architecture is also summarized in [PROJECT_NOTES.md](../project/PROJECT_NOTES.md), while the hardware setup checklist is in [PI5_ROS_ESP32_SETUP_PLAN.md](../hardware/PI5_ROS_ESP32_SETUP_PLAN.md).

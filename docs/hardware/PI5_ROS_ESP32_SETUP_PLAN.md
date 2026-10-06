@@ -4,15 +4,15 @@ This is the practical setup plan for configuring a Raspberry Pi 5 to work with t
 
 ## Recommended target stack
 
-Use the following as the default build path unless the exact hardware and board revision force a different variant:
+Use the following as the default build path. This is a selected baseline, not yet a validated image; the camera test below is an early go/no-go gate.
 
-- Raspberry Pi OS 64-bit (Bookworm) on the Pi 5
-- ROS 2 Jazzy on Ubuntu 24.04 ARM64 or a compatible ROS 2 package source if Debian packaged binaries are available
+- Ubuntu Server 24.04 LTS, ARM64, on the Pi 5
+- ROS 2 Jazzy binary packages for Ubuntu 24.04 ARM64
 - Official Raspberry Pi camera stack (`libcamera`, `rpicam-apps`, Picamera2 when needed)
 - Waveshare UGV02 ESP32 firmware as the low-level chassis controller
-- ROS nodes that translate between ROS 2 topics and the JSON UART command protocol used by the ESP32
+- A project-owned Pi ROS node that translates between ROS 2 and the ESP32 JSON UART protocol
 
-This recommendation reflects the official Raspberry Pi camera guidance and the Waveshare robot docs. The vendor example repo also targets Raspberry Pi OS and host-side scripts, so the practical path is to validate the actual board revision, UART wiring and protocol before deciding whether to stay on Raspberry Pi OS or switch to Ubuntu 24.04.
+Jazzy on Ubuntu is the cleanest supported ROS binary-package path for this Pi 5 project. Raspberry Pi documents IMX708 support in its camera stack, but do not assume that the exact CSI camera path works on the selected Ubuntu image: prove capture and ROS image publication before proceeding. If that gate fails, stop and choose a Raspberry Pi OS-based ROS deployment deliberately. Waveshare's `ugv_base_ros` is ESP32 firmware, not a ROS 2 host driver, and its full Pi application is not required.
 
 ## 1. Hardware verification before software install
 
@@ -24,7 +24,8 @@ Before you begin flashing or installing ROS, confirm the hardware and board revi
 2. Verify the power and battery configuration.
    - Three 18650 cells in series are expected.
    - Check the battery condition, polarity, and the UPS module status.
-   - Confirm the Pi 5 power budget under load and test with the camera and motors active.
+   - The vendor board advertises 5 V/3.3 V outputs without a verified continuous current rating for Pi 5 use. Power the Pi from a separate known 5 V/5 A supply during bench bring-up; do not connect board 5 V to Pi power until rated and wired safely.
+   - Test the final battery-to-Pi regulator under CPU, camera and motor load for voltage dips, resets and undervoltage before mobile operation.
 3. Verify the connection plan to the ESP32.
    - The UGV02 docs specify a host computer interface via GPIO UART at 115200 baud.
    - Confirm the exact UART pins and wiring, and test on the bench before mounting the Pi in the robot.
@@ -32,7 +33,7 @@ Before you begin flashing or installing ROS, confirm the hardware and board revi
    - The camera is a Raspberry Pi Camera Module 3 Wide, which uses the official CSI stack.
    - Confirm the camera cable is the correct 22-pin Pi-side to 15-pin camera-side cable.
 
-## 2. Prepare the SD card and Pi OS
+## 2. Prepare the SD card and Ubuntu Server
 
 Use Raspberry Pi Imager and configure the OS before the first boot.
 
@@ -42,12 +43,12 @@ Download and install from:
 
 - https://www.raspberrypi.com/software/
 
-### 2.2 Flash Raspberry Pi OS 64-bit
+### 2.2 Flash Ubuntu Server 24.04 LTS (64-bit ARM)
 
 Use Raspberry Pi Imager with:
 
 - Device: Raspberry Pi 5
-- OS: Raspberry Pi OS (64-bit)
+- OS: Ubuntu Server 24.04 LTS (64-bit ARM)
 - Storage: the microSD card
 
 Enable these during imaging if using a headless setup:
@@ -74,71 +75,45 @@ sudo apt full-upgrade -y
 sudo reboot
 ```
 
-## 3. Configure the Raspberry Pi system
+## 3. Configure Ubuntu Server and the Pi interfaces
 
-After the Pi is reachable over the network:
+Preconfigure hostname, user, Wi-Fi and SSH with Raspberry Pi Imager. After first boot, update Ubuntu and verify the Pi is reachable over the intended LAN. Do not assume Raspberry Pi OS utilities are present.
 
 ```bash
-sudo raspi-config
+sudo apt update
+sudo apt full-upgrade -y
 ```
 
-Recommended first-pass changes:
+Before enabling the ESP32 UART, confirm the exact board pinout and Linux device mapping. Use the Ubuntu Raspberry Pi documentation to ensure the UART is enabled and that no kernel console owns that UART. Do not use `raspi-config`-specific menu steps or change GPU memory settings for this headless Ubuntu baseline.
 
-- System Options > Hostname
-- Localisation > Timezone / locale
-- Interface Options > SSH enable
-- Performance Options > set memory split if applicable to camera/graphics use
-- Interface Options > enable I2C if required by future peripherals
-- Interface Options > serial console disable only if you are using the serial UART for the ESP32
-
-Important: if the Pi's serial port is being used for the ESP32, do not leave the system console tied to it. Confirm the actual UART mapping before relying on it.
+The camera acceptance test and UART mapping should be completed before mounting the Pi in the chassis. Use a known 5 V/5 A USB-C supply for bench work; the chassis 5 V output is not approved as a Pi supply until its rating is known.
 
 ## 4. Install the camera software stack
 
-The camera is a Raspberry Pi CSI camera. Use the modern Raspberry Pi camera stack rather than the legacy stack.
+The camera is a Raspberry Pi CSI camera. Use the modern libcamera-based stack, not the legacy stack. Ubuntu package/tool availability can differ from Raspberry Pi OS, so do not assume `rpicam-*` is preinstalled.
 
 Verify the camera is visible:
 
 ```bash
 v4l2-ctl --list-devices
-libcamera-hello --list-cameras
+cam -l
 ```
 
-If the package is not present, install the camera stack:
+Install the Ubuntu camera utilities available for the selected image, then verify that the IMX708 sensor enumerates. On Raspberry Pi OS, the equivalent application is `rpicam-hello --list-cameras`; use `rpicam-still`/`rpicam-vid` only when those applications are installed and support the CSI camera.
 
 ```bash
-sudo apt install -y libcamera-apps python3-picamera2
+sudo apt install -y v4l-utils libcamera-tools
 ```
 
-Then test the camera with:
-
-```bash
-libcamera-hello -t 2000
-rpicam-still -o test.jpg
-```
+Pass the camera gate by capturing a local still and short video, then publishing timestamped images and CameraInfo through the selected ROS 2 camera driver. If Ubuntu cannot provide that complete path, stop and reassess the OS before continuing.
 
 This matches the official Raspberry Pi camera documentation, which states that the modern camera stack is the supported route and that legacy `raspistill`/`raspivid` paths are deprecated.
 
 ## 5. Install ROS 2
 
-### Option A: recommended practical path
+Use Ubuntu Server 24.04 ARM64 + ROS 2 Jazzy as the selected baseline. Install the official Jazzy deb packages for Ubuntu 24.04 ARM64 and record the image date, kernel, ROS package versions and install steps in the hardware log. Do not use the Waveshare full Pi image or run its `ugv_rpi` installer as a prerequisite.
 
-For a clean, current workstation-class ROS install on the Pi:
-
-- Ubuntu 24.04 ARM64 on the Pi 5
-- ROS 2 Jazzy
-
-This is the cleanest long-term approach if the project wants to stay fully in ROS 2 with standard tooling.
-
-### Option B: vendor-compatible path
-
-If the project wants the shortest path to the vendor sample repo and script flow, use:
-
-- Raspberry Pi OS 64-bit
-- ROS 2 packages via the appropriate Debian repository or Dockerized ROS install
-- then follow the Waveshare `ugv_rpi` and `ugv_base_ros` examples
-
-For the initial project plan, we treat Ubuntu 24.04 + ROS 2 Jazzy as the preferred target and Raspberry Pi OS as the compatibility fallback.
+Before installing the full ROS workspace, pass the CSI camera acceptance gate: confirm IMX708 enumeration, capture a local image/video, and publish a ROS image with timestamps and CameraInfo. If this fails on Ubuntu, pause and reassess a Raspberry Pi OS-based ROS setup before proceeding; the fallback is intentionally not preselected because camera, ROS packaging and host integration must be tested together.
 
 ### ROS install pattern
 
@@ -152,7 +127,7 @@ sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | 
  echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list
 
 sudo apt update
-sudo apt install -y ros-jazzy-desktop
+sudo apt install -y ros-jazzy-ros-base
 ```
 
 Then source the environment:
@@ -184,22 +159,24 @@ Important: do this only if using the Waveshare host-side scripting path. It is a
 
 If the repo is not used directly, keep it as a reference for the working host-side deployment pattern and the expected robot configuration values.
 
-## 7. Install the ESP32 low-level firmware and verify the protocol
+## 7. Verify the ESP32 low-level firmware and protocol
 
 The lower computer repo is:
 
 - https://github.com/waveshareteam/ugv_base_ros
 
-This is the ESP32 firmware to inspect and compile if needed. The official docs also state that the ESP32 uses JSON commands over UART at 115200 baud.
+This repository is the ESP32 firmware source, not a ROS 2 host-side package. Keep the shipped firmware initially; do not compile or flash unless the delivered board/version requires it. UGV02 documentation identifies version 0.96 as current and documents JSON over UART at 115200 baud.
 
 ### 7.1 Verify board revision and firmware
 
-Before compiling or changing firmware, inspect the board and determine whether it is the newer ROS Driver board or the older General Driver board.
+Read the board markings and OLED firmware/version at boot. Determine whether it is the newer ROS Driver board or older General Driver board before choosing source or pin assignments. Current UGV02 documentation says older UGV02 units use General Driver; newer ROS Driver units use `ugv_base_ros`.
 
-The repository naming suggests:
+The repository roles are:
 
 - `ugv_base_ros` for ROS Driver boards
 - `ugv_base_general` for older General Driver boards
+
+Despite its name, `ugv_base_ros` runs on the ESP32; the Pi still needs a ROS-to-serial bridge.
 
 ### 7.2 Confirm the host UART connection
 
@@ -238,13 +215,14 @@ Do not implement multiple duplicate differential-drive or odometry stacks. Keep 
 
 ## 9. Key serial and control commands to test
 
-The UGV02 docs list JSON control patterns including command types such as:
+The current UGV02 reference documents newline-delimited JSON at 115200 baud. Prefer the ROS-style velocity command, not raw PWM:
 
-- wheel speed control
-- motor PWM debug mode
-- ROS control mode
-- chassis feedback queries
-- continuous serial feedback
+- `{"T":13,"X":0.1,"Z":0.0}`: linear m/s and angular rad/s.
+- `{"T":1,"L":0.1,"R":0.1}`: closed-loop left/right wheel speeds in m/s; documented range is -0.5 to +0.5.
+- `{"T":130}`: request chassis feedback.
+- `{"T":131,"cmd":1}`: enable continuous chassis feedback.
+
+The firmware source sets a 3000 ms heartbeat stop. The Pi command gate must use a much shorter local freshness timeout and send zero/stop when its command lease expires; the MCU timeout is a backup only. Verify actual behavior with wheels elevated.
 
 Operational test flow:
 
@@ -266,7 +244,7 @@ print(ser.readline())
 PY
 ```
 
-Replace `/dev/ttyUSB0` with the actual UART path after checking the hardware.
+Replace `/dev/ttyUSB0` with the verified UART path. The Pi 40-pin header exposes UART/I2C only (not general-purpose GPIO); check the board schematic and voltage levels before wiring.
 
 ## 10. Camera-first validation
 
@@ -278,10 +256,10 @@ Before adding a large autonomy stack:
 4. Validate latency and image quality.
 5. Use the feed for simple motion or target detection experiments.
 
-Recommended camera test commands:
+Use the camera commands installed for the selected OS. Raspberry Pi OS uses `rpicam-*`; Ubuntu may provide `cam`/libcamera tools instead. These command names are examples, not a guarantee that both command sets are present:
 
 ```bash
-libcamera-hello -t 2000
+cam -l
 rpicam-still -o test.jpg
 rpicam-vid -t 5000 -o test.h264
 ```
@@ -348,7 +326,7 @@ Keep these assumptions visible until they are verified on actual hardware:
 
 When the hardware is available, the working sequence is:
 
-1. Image the SD card with Raspberry Pi OS 64-bit.
+1. Image the SD card with Ubuntu Server 24.04 LTS 64-bit ARM.
 2. Boot and configure the Pi.
 3. Enable SSH and network.
 4. Install camera stack and verify the camera.

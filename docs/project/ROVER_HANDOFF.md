@@ -32,19 +32,21 @@ Listing states: assembled chassis, UK 12.6 V/2 A charging power supply, USB cabl
 
 Three cells in series: approx. 11.1 V nominal / 12.6 V fully charged. Three 3000 mAh cells give 3000 mAh pack capacity and approx. 33 Wh, not 9000 mAh. Onboard circuitry handles charging/protection; supplied adapter is not the Pi's mains supply.
 
-Pi mounting/header is intended to provide UART communication and host power. Exact fitted-board pinout, mounting orientation and power rating must be verified. Do not assume a 40-pin connector guarantees compatibility or attach unverified power connections.
+The fitted board exposes UART/I2C on its 40-pin header; it does not expose general-purpose GPIO through that header. Verify the exact pinout and electrical levels against the delivered board before connecting the Pi. Waveshare documents 5 V and 3.3 V expansion outputs but does not give a verified continuous 5 V current rating adequate for a Pi 5. Power the Pi from a known 5 V/5 A source during bench bring-up; do not power it from the rover board until its rating is confirmed.
 
-**Unresolved power question:** Pi 5 compatibility is documented, but a reliable continuous 5 V output rating for the exact newer board was not established. Pi 5 recommends 5 V/5 A; lower-current operation can work with restricted peripherals. Determine power budget for Pi, cooler and camera; test under simultaneous CPU/video load and motor acceleration for voltage drops, resets and undervoltage. Provide a separate suitable regulator only if required, avoiding backfeeding.
+**Power decision:** Treat the rover board's 5 V output as unqualified for Pi 5 power. Use a separate regulated 5 V supply with adequate current for the Pi during development, and test the final battery-to-Pi regulator under CPU, camera and motor load. Do not parallel supplies or backfeed the Pi.
 
 ## Controller and firmware
 
 The ESP32 handles low-level motor control, encoder processing and onboard sensors. Retain factory firmware initially. Its documented host interface is JSON via GPIO UART or USB serial at 115200 baud. **The board name “ROS Driver” does not mean it communicates natively using ROS or micro-ROS.** A Pi-side ROS driver/adapter translates between ROS and the serial protocol.
 
-Official repository `ugv_base_ros` supports newer ROS Driver boards, including UGV02. `ugv_base_general` supports older General Driver boards. Use exact board/firmware revision and inspect source rather than copying commands from another Waveshare variant.
+The current UGV02 documentation identifies firmware version 0.96 and the official `ugv_base_ros` repository as the ESP32 firmware for the newer ROS Driver board; the older UGV02 General Driver requires `ugv_base_general`. Despite its name, `ugv_base_ros` is ESP32 firmware, not a ROS 2 host package. Use the factory firmware initially and implement a small Pi-side ROS-to-JSON serial bridge unless the delivered board/firmware proves incompatible.
 
 Encoder-equipped UGV02 documentation exists, and the newer firmware advertises closed-loop PID. Still verify actual motor encoders, which channels are connected, feedback units and odometry availability on the delivered kit. The cheaper **WAVE ROVER** is a different model with no motor encoders; its “speed” commands are PWM fractions. Do not import that limitation or protocol interpretation blindly into UGV02.
 
-Check movement command units, serial framing, feedback publication, robot-type configuration, wheel geometry, direction, firmware watchdog/heartbeat behaviour and motor-disable behaviour. A documented timeout elsewhere in Waveshare's range is not proof of the timeout on this firmware. Measure it.
+The current UGV02 reference documents newline-delimited JSON over UART/USB at 115200 baud; `T=13` accepts linear velocity `X` in m/s and angular velocity `Z` in rad/s. `T=1` accepts left/right wheel speeds in m/s (documented range -0.5 to +0.5). `T=130` requests base feedback, and `T=131,cmd=1` enables continuous feedback. The current firmware source sets a 3000 ms heartbeat timeout; treat that only as a secondary firmware stop and verify it on the delivered unit. The documented geometry defaults are 80 mm wheel diameter and 172 mm track width; calibrate encoder scale and effective track width on the actual chassis before using odometry.
+
+The vendor source reads one encoder channel per side (front-wheel feedback); it does not provide independent feedback for all four driven wheels. Treat odometry as provisional and validate direction, ticks-per-distance, and slip before using it for navigation.
 
 No additional Pico 2, Pixhawk or motor driver is needed for the small platform's initial operation. A Pi + Pico 2 + Linorobot2 was considered for a custom robot but superseded by using the purchased Waveshare base.
 
@@ -52,16 +54,11 @@ No additional Pico 2, Pixhawk or motor driver is needed for the small platform's
 
 **Settled:** ROS 2 on Pi; model on PC; ordinary Pi camera stack; use Waveshare's ESP32 interface rather than its entire Pi application.
 
-**Not settled:** OS version, ROS distribution, camera ROS package, Waveshare ROS driver, middleware configuration, container use and PC deployment method. Do not claim an image has been downloaded or validated.
+**Default software decision (not yet hardware-validated):** use Ubuntu Server 24.04 ARM64 with ROS 2 Jazzy on the Pi, and keep the model/operator application on the PC. This is the cleanest supported ROS binary-package path for Pi 5. Make CSI camera capture on the exact Camera Module 3 Wide an early acceptance gate before investing in higher-level software; if the native camera path is not reliable on Ubuntu, stop and select a Raspberry Pi OS-based ROS deployment deliberately rather than layering workarounds into the baseline. No image has been installed or validated yet.
 
-Options to evaluate in the detailed plan:
+The Pi camera uses the modern libcamera/rpicam stack, not legacy raspistill/raspivid. Raspberry Pi documents IMX708 support, but validate camera capture and ROS image publication on the selected Ubuntu image before treating the full stack as proven. Waveshare's Pi application is not a prerequisite and `ugv_base_ros` is the lower-computer firmware, not a ready ROS 2 host driver. No applicable turnkey UGV02/Pi 5 ROS 2 image was confirmed.
 
-1. Ubuntu 24.04 ARM64 + ROS 2 Jazzy: conventional ROS package route, subject to verifying Pi 5 Camera Module 3/libcamera support and driver compatibility.
-2. Raspberry Pi OS 64-bit with camera support + an appropriately supported ROS container: potentially simpler camera support, but camera devices/libraries, UART, network discovery and host/container integration must be planned.
-
-Waveshare's published ROS kit material describes Bookworm and ROS 2 Humble; this is reference information, not a chosen stack or proof the chassis-only product has an applicable turnkey image. No UGV02/Pi 5 ready-made SD image was conclusively confirmed. Prefer a coherent verified stack over a vendor image for a different robot.
-
-The Pi camera uses modern libcamera/rpicam/Picamera2 paths, not legacy raspistill/raspivid and not automatically a generic USB webcam node. Select and test the ROS camera driver before finalising OS. Publish timestamped images and CameraInfo; calibrate wide lens for geometric vision.
+The Pi camera uses modern libcamera/rpicam/Picamera2 paths, not legacy raspistill/raspivid and not automatically a generic USB webcam node. Ubuntu 24.04 + ROS 2 Jazzy is the Pi baseline, with CSI capture and ROS image publication as an early acceptance gate. Publish timestamped images and CameraInfo; calibrate the wide lens for geometric vision.
 
 ## Remote intelligence and autonomy
 
@@ -103,8 +100,8 @@ Future hitch: structural rear hitch, auxiliary 24 V, data (CAN/RS485 considered)
 Produce a detailed practical implementation plan grounded in the delivered hardware and official source code:
 
 1. Verify board revision, encoder feedback, UART pinout/protocol and Pi power budget.
-2. Compare OS/ROS/camera combinations and recommend one with reproducible install instructions and version pins.
-3. Locate an existing suitable Waveshare ROS driver; inspect protocol and watchdog behaviour. Define minimal adapter only where needed.
+2. Validate the Ubuntu 24.04/Jazzy baseline with the CSI camera and record exact image/package versions; pivot only if the camera acceptance gate fails.
+3. Confirm the delivered board/firmware variant and implement the minimal Pi-side serial bridge for the documented JSON protocol; test the 3-second firmware timeout as a backup, not the primary command watchdog.
 4. Define ROS nodes, topics/actions, frames, camera transport, localisation options and model-to-autonomy interface. Avoid duplicate differential-drive/odometry implementations.
 5. Plan PC environment and LAN setup, manual/automatic arbitration, fresh-command checks and failure recovery.
 6. Commission with wheels elevated, then low-speed floor tests: direction, encoder scaling, stopping, network loss, process crash, reset, power dips and camera loss.
