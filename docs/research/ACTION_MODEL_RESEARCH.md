@@ -1,6 +1,6 @@
 # Action model research and recommendation
 
-Research checked 2026-10-05. The PC was identified as an NVIDIA GeForce RTX 2080 Ti with 11,264 MiB VRAM using `nvidia-smi`. This is an architecture recommendation, not a benchmark of model throughput or task success on that machine. The final ROS/navigation stack is not yet selected.
+Research checked 2026-10-05. The local development PC hardware snapshot is recorded in [DEVELOPMENT_PC_PROFILE.md](../hardware/DEVELOPMENT_PC_PROFILE.md). The model recommendation below is not a benchmark of throughput or task success, and must be reevaluated for each deployment PC. The final ROS/navigation stack is not yet selected.
 
 ## Recommendation
 
@@ -11,7 +11,7 @@ Use a hybrid system rather than asking one learned action model to drive the rov
 3. A conventional ROS navigation stack executes pose/waypoint goals and handles local motion control and obstacle avoidance.
 4. The Pi validates command ownership, limits and freshness, and stops on timeout or fault. Neither model output nor network availability is trusted as a safety mechanism.
 
-The requested v1 is **one local multimodal model on the PC**, not a VLM plus a separate decision model. The machine has an NVIDIA RTX 2080 Ti with 11 GiB VRAM, so start by testing **Qwen3-VL Instruct 4B with a supported 4-bit inference runtime**. This is a plausible fit for image snapshots and conversational/tool-selection requests, but memory use and interactive latency depend on the runtime, image resolution, context length, and other GPU processes. Measure those on the actual machine; fall back to 2B if 4B is too slow or runs out of memory. Treat 8B as a later experiment, not the initial target.
+The requested v1 is **one local multimodal model on the PC**, not a VLM plus a separate decision model. **Qwen3-VL Instruct 4B with a supported 4-bit inference runtime** is a starting candidate for image snapshots and conversational/tool-selection requests, not a fixed project dependency. Its suitability depends on the target PC's available memory, inference runtime, image resolution, context length, and competing GPU workloads. Benchmark on the actual machine; compare a smaller model if memory or latency is inadequate. Treat larger models as later experiments, not assumed requirements.
 
 One VLM can interpret the user request, inspect selected camera frames, and propose typed skill calls. It does not need to emit motor commands. The deterministic mission executive validates the proposal, and ROS navigation/Pi safety software performs and constrains the action. Do not run high-rate video through the model; send selected, resized/compressed frames when a task needs visual feedback. The camera stream and ordinary perception/navigation components remain available to the software pipeline without requiring a second AI model.
 
@@ -49,7 +49,7 @@ For “find the sock in the kitchen,” the PC model interprets the semantic goa
 
 | Option | Local PC use | Fit for this rover | Assessment |
 |---|---|---|---|
-| Qwen3-VL Instruct (2B/4B/8B) | Yes; public checkpoints and inference code | Language + image interpretation, object grounding, and proposing tools | Recommended single model to benchmark for v1. Start with 4B at supported 4-bit quantization on the RTX 2080 Ti; use 2B if memory or latency is inadequate. It is not a trained rover controller; validate all proposed skills in mission software. Exact VRAM and throughput depend on precision, image resolution, context, and serving runtime. |
+| Qwen3-VL Instruct (2B/4B/8B) | Yes; public checkpoints and inference code | Language + image interpretation, object grounding, and proposing tools | Recommended single model family to benchmark for v1. Start with 4B at supported 4-bit quantization only if it fits the target PC; compare 2B if memory or latency is inadequate. The current development PC profile is recorded separately. It is not a trained rover controller; validate all proposed skills in mission software. Exact VRAM and throughput depend on precision, image resolution, context, and serving runtime. |
 | Clef / Clef-Flash (27B / 9B) | Yes; Apache-2.0 open weights and local inference code; also hosted on Workers AI | Multimodal, schema-constrained decisions with probabilities over allowed choices | Not selected for v1: it would introduce a second model beside the conversational VLM, and its local hardware requirements are high. Keep as a future alternative if typed action selection proves inadequate; Cloudflare benchmark claims are not yet independently reproduced. |
 | Jev (TypeSafe System One) | No; hosted API, proprietary weights | Fast typed choices/scores over supplied text or structured state | Sensible optional decision/classification service after perception has converted images to structured state. Text-only, no local/offline inference, and no conversational generation. Treat confidence as a routing signal, not a safety guarantee. |
 | Cloud multimodal model | No local weights required | Potentially strong reasoning for ambiguous images and tasks | Optional provider. Adds internet dependency, latency, recurring cost, and image privacy concerns. It cannot be required in the stop/control loop. |
@@ -74,7 +74,7 @@ JEPA is a separate concept from Jev. Assuming “JEV” in the earlier question 
 
 1. Implement and test deterministic `RotateRelative` and `Stop` actions with wheel-off-ground tests, angle/time/speed limits, cancellation, and communication-loss stopping. Evaluate a 360-degree request against encoder/odometry feedback; camera imagery is supplementary evidence, not the only turn measurement.
 2. Add the operator app and allowlisted mission tools, initially without visual search. Compare model proposals against a fixed schema and reject invalid requests.
-3. Benchmark Qwen3-VL Instruct 4B with supported 4-bit quantization on the RTX 2080 Ti using recorded rover images and representative requests. Measure end-to-end latency, GPU memory, object-identification accuracy, grounding consistency, tool-call validity, and invalid/unsafe action proposals. Compare 2B only if 4B fails the latency or memory target; do not add a second model for v1.
+3. Benchmark Qwen3-VL Instruct 4B with supported 4-bit quantization on the target PC using recorded rover images and representative requests. Measure end-to-end latency, peak GPU memory, object-identification accuracy, grounding consistency, tool-call validity, and invalid/unsafe action proposals. Compare smaller checkpoints if 4B fails that PC's latency or memory target; repeat this evaluation when changing deployment hardware.
 4. Add compressed camera delivery to the PC and a visual inspection/search skill. Build and validate room/map localization and camera-to-map grounding before enabling autonomous object approach.
 5. Test Nav2 or the selected navigation stack independently with non-model goals. Only then connect model-planned tasks to navigation actions.
 

@@ -27,6 +27,7 @@ The model proposes bounded task-level actions; it does not send motor PWM or wri
 - Pi software baseline: Ubuntu Server 24.04 ARM64 and ROS 2 Jazzy, subject to passing the CSI camera capture and ROS image-publication test.
 - Base interface: retain factory ESP32 firmware initially; implement a thin Pi-side ROS-to-JSON serial bridge because Waveshare's `ugv_base_ros` repository is firmware, not a ROS 2 host driver.
 - PC role: operator interface, perception, and mission-level model; ordinary navigation and safety software constrain movement.
+- Local development PC details: [development PC profile](docs/hardware/DEVELOPMENT_PC_PROFILE.md). These describe one test machine, not a required deployment specification.
 - Status: planning and pre-commissioning. Board revision, UART pinout, Pi power budget, and camera compatibility remain to be verified on the actual hardware.
 
 ## Read The Docs

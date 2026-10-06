@@ -18,7 +18,7 @@ The user wants to go straight to ROS 2. Do not make Waveshare's browser applicat
 | Raspberry Pi 5 | Ordered | RAM size was not explicitly confirmed. Recommended 4 GB, but do not assume ordered capacity. |
 | Official Raspberry Pi Camera Module 3 Wide | Ordered | Pi Hut variant 42305752072387, SKU SC1224; Sony IMX708, autofocus, about 102° horizontal / 120° diagonal FoV. Standard colour/IR-cut version, not NoIR. Fixed mount initially; no pan/tilt required. |
 | 18650 lithium-ion cells | Already owned | User has many. Select three matching suitable cells after checking discharge rating, condition, dimensions and terminal style. |
-| Remote PC with NVIDIA RTX GPU | Already available | Intended for expensive model inference over Wi-Fi. Exact current GPU/VRAM, OS and model are not confirmed in this discussion. Ask/check locally rather than assume. |
+| Remote PC for model inference | Already available | PC/GPU details are a deployment profile, not a rover requirement. See [development PC profile](../hardware/DEVELOPMENT_PC_PROFILE.md); confirm the actual target PC's OS and available compute before selecting a model/runtime. |
 | Linear actuators | Already owned | Possible future cart steering; models, feedback, speed, stroke and force unknown. |
 | Pi 5 camera cable | Unconfirmed | Wide camera package explicitly excludes Pi 5 cable. Needs 22-pin Pi-side to 15-pin camera-side CSI camera cable. |
 | MicroSD | Unconfirmed | 32–64 GB recommended; not a confirmed purchase. |
