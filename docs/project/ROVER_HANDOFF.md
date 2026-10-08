@@ -79,9 +79,11 @@ Use ROS 2 directly over the LAN between PC and Pi; separate HTTP service is opti
 
 Wheel encoders remain valuable for speed control and short-term odometry even with skid steering. Odometry alone is unreliable under slip; fuse/compare with IMU and visual position. Do not confuse controlled wheel RPM with controlled ground velocity.
 
-## UI
+## UI and development observability
 
-The project PC operator application is an explicit feature: conversational task requests, joystick teleoperation, a task-focused 2D map with semantic annotations, and camera/robot/task status, backed by PC-side model and mission components. Its framework and exact ROS-facing interfaces remain open. Foxglove is recommended as an optional bring-up/diagnostics dashboard for raw video, pose/map, status, plots, and ROS inspection; it is not the required chat or operator app. Verify current compatibility/licensing before selecting. Neither the app, a dashboard, nor a network stop button is an independent E-stop.
+The project PC operator application is an explicit feature: conversational task requests, joystick teleoperation, a task-focused 2D map with semantic annotations, and the camera/robot/task status needed for operation, backed by PC-side model and mission components. Its framework and exact ROS-facing interfaces remain open. Keep this app focused on operating the rover rather than duplicating a general ROS debugger.
+
+Use Foxglove early during development and commissioning as the richer, separate observability console for raw ROS topics, camera images with perception overlays, pose/map, status, plots, transforms, and model/mission behavior. It is optional at runtime; the operator workflow and robot must not require Foxglove or its bridge. Publish detections and decision events as timestamped structured ROS data so Foxglove can display and correlate them with the source image. Decision events should include the relevant observation/frame, detections and confidence, proposed task-level action, and mission validation/result, with concise evidence or rationale summaries rather than private chain-of-thought. Keep Foxglove compatibility and licensing under review before selecting it. Neither the app, a dashboard, nor a network stop button is an independent E-stop.
 
 ## Full-size rover — future scope, not purchased
 
