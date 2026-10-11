@@ -42,8 +42,68 @@ The current model is the already installed Ollama `qwen2.5vl:7b`. Analysis uses 
 the local API at `127.0.0.1:11434`. It samples the newest available frame after each
 inference; it does not queue old images. The analyzed view shows the exact frame used
 for inference, rather than applying delayed predictions to current video. Boxes are
-experimental model predictions, not a validated object detector. Invalid coordinates
-are omitted. There is no connection from model output to motor control.
+produced by the local YOLO11s detector, with labels and confidence scores from that
+same detection. Qwen supplies only the scene summary. Detector coordinates are
+in original-image pixels; the renderer never interprets Qwen coordinates or pairs
+Qwen labels with detector boxes. The summary sits above the image rather than
+obscuring its top edge. There is no connection from model output to motor control.
+
+Qwen now receives **the clean resized camera frame plus matching structured JSON**.
+The input includes an observation ID, the task, source/attached image sizes, up to
+eight detector observations (IDs, labels, detector confidence and boxes scaled to
+the attached image), and available robot context. The original full-size pixel
+boxes are retained for comparison. IDs are local to one observation; persistent
+tracking is not implemented. Qwen's response can reference only supplied IDs and
+contains a summary and uncertainties; unexpected fields and invented IDs are rejected.
+Detections remain hypotheses that Qwen can disagree with.
+
+The default task is to observe and describe the scene. `--task` supplies another
+observation question, for example `--task "Identify the chairs in this image"`.
+This does not enable motion. Pose, map, navigation, LiDAR and object ranges are
+unknown until real producers are connected; the prompt explicitly distinguishes
+unknown measurements from visual impressions. The existing PC-receive timestamp
+is labelled as such, and actual capture age stays unknown.
+
+`runtime/qwen-input.json` records the structured input and `runtime/qwen-frame.jpg`
+is the exact unannotated JPEG attached to the latest request. Foxglove also receives
+the input on `/pc/vision/observation`; `/pc/vision/result` includes the frame ID and
+validated model references. The separate `runtime/analyzed.jpg` is generated only
+after inference for the viewer, and is never sent back into Qwen.
+
+Future producers can optionally write a JSON snapshot selected with
+`--robot-context-file PATH`. Its contract is an object with `updated_at_unix_s`
+(Unix seconds) and optional `pose`, `map`, `navigation`, `lidar` objects or null.
+Snapshots more than five seconds old, future-dated, malformed or missing become
+unavailable context. This is a low-rate model context adapter, not camera/LiDAR
+geometric fusion; sensor timestamp synchronization and calibration still need
+implementation. The adapter cannot enable motion execution.
+
+Seven automated checks cover clean-image input, landscape/portrait box scaling,
+observation references, empty detections, unavailable geometry and context expiry:
+
+```powershell
+./.venv/Scripts/python.exe -m unittest discover -s tools/pc -p 'test_*.py' -v
+```
+
+A local Ollama integration check passed with the official sample image and five
+matching detections: Qwen returned valid object references and explicitly noted
+unknown positions and navigation state. The concise response took 3.23 seconds
+on the warm model. Test evidence is in `runtime/qwen-test-*`; it is separate from
+live request logs. The Pi remained unreachable, so live verification is pending.
+
+YOLO11s detects the 80 common COCO categories; it will not box every arbitrary
+object Qwen can describe. Detections below 50% confidence are omitted. Use
+`--confidence` to change this threshold. Empty detections leave the frame unboxed.
+It runs on the PC CPU to keep Ollama's GPU allocation independent. The detector
+uses a 960-pixel inference size, restores boxes to original-image coordinates,
+and records `coordinate_space`, `image_size`, `detector` and `detection_seconds`
+in `runtime/analysis.json`. Labels remain predictions and need evaluation on
+representative rover imagery, especially with low light, blur or unusual viewpoints.
+
+Validation on 2026-10-11: boxes visually aligned with the bus and people in the
+official Ultralytics example, including its portrait aspect ratio. The saved dim
+rover frame had no detections above the threshold. The Pi was unreachable during
+this change, so live validation of the new detector remains outstanding.
 
 The first real-frame test on 2026-10-11 took 84.6 seconds and produced a description
 and object boxes. Subsequent warm calls took approximately 2.4–3.0 seconds, with
@@ -79,7 +139,14 @@ official sites, install/pull a local vision model, then:
 ```powershell
 py -3.12 -m venv .venv
 ./.venv/Scripts/python.exe -m pip install -r tools/pc/requirements.txt
+New-Item -ItemType Directory -Force runtime/models
+curl.exe -L --fail https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo11s.pt -o runtime/models/yolo11s.pt
 ```
+
+For a CPU-only detection runtime, install `torch torchvision` from the official
+`https://download.pytorch.org/whl/cpu` index before installing the requirements.
+The default detector path is `runtime/models/yolo11s.pt`; `--detector` overrides it.
+Weights are ignored by Git and must be downloaded for a fresh installation.
 
 The commissioning PC has Foxglove 3.3.0 installed at `runtime/foxglove/Foxglove.exe`.
 Adapt the launcher path if installed elsewhere. The PC Foxglove endpoint uses
@@ -95,3 +162,4 @@ References: [Foxglove connections](https://docs.foxglove.dev/docs/getting-starte
 [layout import](https://docs.foxglove.dev/docs/visualization/layouts),
 [desktop launch](https://docs.foxglove.dev/docs/visualization/open-via-cli),
 [local Ollama chat API](https://docs.ollama.com/api/chat).
+[YOLO11 detector and supported classes](https://docs.ultralytics.com/models/yolo11).

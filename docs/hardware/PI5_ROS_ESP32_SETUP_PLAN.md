@@ -228,6 +228,40 @@ Reference: [Foxglove encoded-video requirements](https://docs.foxglove.dev/docs/
 
 ## 5. Install ROS 2
 
+### Structured Qwen observations (2026-10-11)
+
+Qwen receives an unannotated sampled frame and structured evidence from that same
+frame. The PC input includes the observation task, frame ID, explicit PC-reception
+timestamp basis, dimensions, detector IDs/labels/confidence, and boxes scaled to the
+attached model image. Missing pose/map/navigation/LiDAR/range data stays unknown.
+Object IDs are observation-scoped; persistent tracking and sensor association are
+not implemented. The model responds with a description, supplied object references
+and uncertainties. The response schema and local validator reject invented IDs
+and additional fields; model output has no motion-execution path.
+
+The input is inspectable as `/pc/vision/observation` and in `runtime/qwen-input.json`,
+with the actual clean attached JPEG at `runtime/qwen-frame.jpg`. Optional future
+robot-context file snapshots expire after five seconds. Seven automated checks
+cover alignment, clean input, missing geometry, references and stale context.
+The Pi was unreachable during the change, so a live-stream check remains pending.
+An actual local Qwen request with a clear sample image and five detections returned
+validated IDs and unknown-geometry statements in 3.23 seconds on the warm model.
+
+### Object-box revision (2026-10-11)
+
+Replaced Qwen-generated coordinates with PC-side YOLO11s detections. Qwen was
+returning coordinates above 1000 despite the requested 0-1000 convention, making
+the earlier overlay unreliable. Qwen now produces only a scene summary; detector
+boxes, labels and confidence come from the same prediction in original-image
+pixels. The summary banner is placed outside the image so it cannot cover boxes.
+
+The detector runs on the PC CPU at 960-pixel inference size with a 0.5 confidence
+threshold, using the 80 COCO categories. It does not cover arbitrary descriptions
+or guarantee correctness in dim/blurred scenes. A clear official sample showed
+aligned bus/person boxes; the saved dim rover frame produced no confident boxes.
+The Pi was unreachable during this update, so live validation remains outstanding.
+See `tools/pc/README.md` for model download, settings and limitations.
+
 Use Ubuntu Server 24.04 ARM64 + ROS 2 Jazzy as the selected baseline. Install the official Jazzy deb packages for Ubuntu 24.04 ARM64 and record the image date, kernel, ROS package versions and install steps in the hardware log. Do not use the Waveshare full Pi image or run its `ugv_rpi` installer as a prerequisite.
 
 On this Pi the CSI camera acceptance gate is passed, including local still/video capture and ROS image/CameraInfo publication. For a fresh installation, keep this as a go/no-go gate before installing the full ROS workspace; if it fails, investigate the matching PiSP-capable libcamera stack before considering an OS change.
