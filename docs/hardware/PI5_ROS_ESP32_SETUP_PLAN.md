@@ -119,11 +119,39 @@ Pass the camera gate by capturing a local still and short video, then publishing
 
 This matches the official Raspberry Pi camera documentation, which states that the modern camera stack is the supported route and that legacy `raspistill`/`raspivid` paths are deprecated.
 
+### Observed commissioning result (2026-10-11)
+
+On `ROBOT`, Ubuntu Server 24.04.5 ARM64 with kernel `6.8.0-1064-raspi`, the kernel media graph detects the `imx708_wide` sensor. Ubuntu's packaged libcamera 0.2 lacked the PiSP pipeline handler, so its `cam -l` did not enumerate the sensor. The direct V4L2 stream test on `/dev/video0` is not a valid end-to-end camera acceptance test for the Pi 5 CSI pipeline.
+
+Installed the Raspberry Pi libcamera fork `v0.7.2+rpt20261009` and `rpicam-apps` `1.13.0` under `/usr/local`, with the PiSP pipeline and IPA enabled. Ubuntu Noble's FFmpeg libraries are too old for the current rpicam libav encoder, so this build has libav disabled; still capture and MJPEG video work. Verified a 4608x2592 JPEG and a short 640x480 MJPEG recording. No OS reimage was needed.
+
+Installed ROS 2 Jazzy base, rosdep/colcon, and Foxglove bridge `3.6.0`. The packaged `camera_ros` executable was ABI-incompatible with the Raspberry Pi libcamera build, so `camera_ros` `0.7.0` was built in `/home/barry/camera_ws` against the working PiSP library, with a local compatibility adjustment for `std::dynamic_extent`. The node was verified publishing `/camera/image_raw` (`rgb8`) and `/camera/camera_info` at approximately 30 Hz using 1280x720 BGR888 output.
+
+The camera is not calibrated yet. `CameraInfo` publishes, but its intrinsic dimensions are zero until a calibration file is created; do not use it for geometry-dependent perception before calibration. No object-detection or model-labelling node is installed.
+
+The Foxglove bridge was verified reachable from the development PC on `ws://192.168.20.20:8765` and advertised the camera topics. It binds to all interfaces without TLS, so keep it on the trusted LAN. The temporary camera and bridge processes were stopped after validation.
+
+To start the camera publisher in a shell:
+
+```bash
+source /opt/ros/jazzy/setup.bash
+source ~/camera_ws/install/setup.bash
+export LD_LIBRARY_PATH=/usr/local/lib/aarch64-linux-gnu:$LD_LIBRARY_PATH
+ros2 run camera_ros camera_node --ros-args -p camera:=0 -p role:=video -p format:=BGR888 -p width:=1280 -p height:=720
+```
+
+In a second shell, start the Foxglove bridge:
+
+```bash
+source /opt/ros/jazzy/setup.bash
+ros2 launch foxglove_bridge foxglove_bridge_launch.xml port:=8765 address:=0.0.0.0
+```
+
 ## 5. Install ROS 2
 
 Use Ubuntu Server 24.04 ARM64 + ROS 2 Jazzy as the selected baseline. Install the official Jazzy deb packages for Ubuntu 24.04 ARM64 and record the image date, kernel, ROS package versions and install steps in the hardware log. Do not use the Waveshare full Pi image or run its `ugv_rpi` installer as a prerequisite.
 
-Before installing the full ROS workspace, pass the CSI camera acceptance gate: confirm IMX708 enumeration, capture a local image/video, and publish a ROS image with timestamps and CameraInfo. If this fails on Ubuntu, pause and reassess a Raspberry Pi OS-based ROS setup before proceeding; the fallback is intentionally not preselected because camera, ROS packaging and host integration must be tested together.
+On this Pi the CSI camera acceptance gate is passed, including local still/video capture and ROS image/CameraInfo publication. For a fresh installation, keep this as a go/no-go gate before installing the full ROS workspace; if it fails, investigate the matching PiSP-capable libcamera stack before considering an OS change.
 
 ### ROS install pattern
 
