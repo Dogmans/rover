@@ -2,6 +2,8 @@
 
 This document captures the implementation direction from the handoff and is intended to be a practical starting point for the next agent or coding session.
 
+For the current implementation checklist, see [Feature status](FEATURE_STATUS.md). The plans below describe the intended system; completed capabilities and outstanding acceptance checks are tracked there.
+
 ## Goal
 
 Create a capable outdoor rover platform with a staged development path:

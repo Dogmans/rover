@@ -2,6 +2,8 @@
 
 This is the practical setup plan for configuring a Raspberry Pi 5 to work with the Waveshare UGV02 via its ESP32 controller and ROS 2.
 
+See [Feature status](../project/FEATURE_STATUS.md) for the current cross-project checklist of implemented capabilities, outstanding validation, and planned work. This document retains commissioning procedures and recorded results.
+
 ## Recommended target stack
 
 Visualization runs on the development PC. The Pi runs the camera publisher, ROS 2

@@ -4,6 +4,8 @@ This project is developing an outdoor utility rover for hauling and towing garde
 
 The repository contains design and commissioning documentation, deployed Pi camera/bridge service definitions, and a PC Foxglove/local-vision prototype. Camera streaming is commissioned; the ESP32 has not arrived, so drive control remains planned.
 
+See the [feature status checklist](docs/project/FEATURE_STATUS.md) for implemented capabilities, outstanding validation, and work still to implement.
+
 ## How It Works
 
 The intended system keeps high-level intelligence on the PC and deterministic control on the rover. ROS 2/DDS carries commands, status, and camera data across the local network. On the Pi, a safety gate accepts only fresh, bounded commands; a project-owned ROS driver translates them to the ESP32's UART JSON protocol. The ESP32 runs the low-level motor controller.
