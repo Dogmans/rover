@@ -79,6 +79,16 @@ sudo reboot
 
 Preconfigure hostname, user, Wi-Fi and SSH with Raspberry Pi Imager. After first boot, update Ubuntu and verify the Pi is reachable over the intended LAN. Do not assume Raspberry Pi OS utilities are present.
 
+### Local SSH connection config
+
+The repository-root `pi.sshconfig.local` file is machine-specific and ignored by Git. Copy `pi.sshconfig.example` to that path and set the Pi address and username for your setup. Keep passwords and private keys out of the repository; this config is set to use public-key authentication only. The local config can be used from PowerShell or a shell with:
+
+```powershell
+ssh -F .\pi.sshconfig.local rover-pi
+```
+
+Scripts can use the same OpenSSH config with `ssh -F <config-path> rover-pi` rather than duplicating connection details. If this file is absent, create it from the example; do not commit the local copy.
+
 ```bash
 sudo apt update
 sudo apt full-upgrade -y

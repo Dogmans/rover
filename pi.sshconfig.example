@@ -1,0 +1,5 @@
+Host rover-pi
+    HostName 192.168.20.20
+    User your-username
+    PreferredAuthentications publickey
+    PasswordAuthentication no
