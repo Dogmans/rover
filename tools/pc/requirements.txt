@@ -1,0 +1,4 @@
+foxglove-sdk==0.29.0
+websockets==17.2
+av==19.0.1
+Pillow==12.3.0

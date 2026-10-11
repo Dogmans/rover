@@ -2,7 +2,7 @@
 
 This project is developing an outdoor utility rover for hauling and towing garden equipment. Software and control are being prototyped first on a small Waveshare UGV02, with the longer-term goal of transferring the autonomy interfaces to a larger custom rover.
 
-The repository currently contains the design and commissioning documentation. It does not yet contain a deployable rover software stack, and the hardware has not been commissioned here. Treat hardware details and software choices as a plan until they are checked against the delivered unit.
+The repository contains design and commissioning documentation, deployed Pi camera/bridge service definitions, and a PC Foxglove/local-vision prototype. Camera streaming is commissioned; the ESP32 has not arrived, so drive control remains planned.
 
 ## How It Works
 
@@ -28,7 +28,8 @@ The model proposes bounded task-level actions; it does not send motor PWM or wri
 - Base interface: retain factory ESP32 firmware initially; implement a thin Pi-side ROS-to-JSON serial bridge because Waveshare's `ugv_base_ros` repository is firmware, not a ROS 2 host driver.
 - PC role: operator interface, perception, and mission-level model; ordinary navigation and safety software constrain movement.
 - Local development PC details: [development PC profile](docs/hardware/DEVELOPMENT_PC_PROFILE.md). These describe one test machine, not a required deployment specification.
-- Status: planning and pre-commissioning. Board revision, UART pinout, Pi power budget, and camera compatibility remain to be verified on the actual hardware.
+- Status: Pi camera capture and ROS publication are verified, with camera/bridge services enabled. Foxglove visualization and local vision inference run on the PC. Board revision, UART pinout and mobile Pi power budget await ESP32/chassis commissioning.
+- Video and analysis: [PC viewer setup](tools/pc/README.md). Run `./tools/pc/start-viewer.ps1`, then import its supplied Foxglove layout.
 
 ## Read The Docs
 

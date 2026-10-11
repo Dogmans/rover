@@ -1,0 +1,18 @@
+[Unit]
+Description=Rover H.264 video encoder for PC visualization
+After=network.target rover-camera.service
+Wants=rover-camera.service
+
+[Service]
+Type=simple
+User=barry
+Environment=HOME=/home/barry
+Environment=ROS_DOMAIN_ID=20
+Environment=ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+ExecStart=/usr/local/bin/rover-video
+Restart=always
+RestartSec=2
+TimeoutStopSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,1 +1,6 @@
 /pi.sshconfig.local
+/.venv/
+/*.local.exe
+/*.tmp
+/runtime/
+__pycache__/

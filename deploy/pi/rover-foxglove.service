@@ -1,0 +1,20 @@
+[Unit]
+Description=Rover Foxglove WebSocket bridge for PC visualization
+After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=barry
+Environment=HOME=/home/barry
+Environment=ROS_DOMAIN_ID=20
+Environment=ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+ExecStart=/usr/local/bin/rover-foxglove
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target

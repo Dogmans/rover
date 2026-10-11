@@ -4,6 +4,11 @@ This is the practical setup plan for configuring a Raspberry Pi 5 to work with t
 
 ## Recommended target stack
 
+Visualization runs on the development PC. The Pi runs the camera publisher, ROS 2
+runtime, Foxglove WebSocket bridge and, once the ESP32 arrives, the serial driver
+and command safety gate. Foxglove desktop and local vision inference belong on
+the PC; the Waveshare full Pi application and a Pi desktop are not required.
+
 Use the following as the default build path. This is a selected baseline, not yet a validated image; the camera test below is an early go/no-go gate.
 
 - Ubuntu Server 24.04 LTS, ARM64, on the Pi 5
@@ -146,6 +151,80 @@ In a second shell, start the Foxglove bridge:
 source /opt/ros/jazzy/setup.bash
 ros2 launch foxglove_bridge foxglove_bridge_launch.xml port:=8765 address:=0.0.0.0
 ```
+
+### Persistent video and PC analysis setup (2026-10-11)
+
+Installed `ros-jazzy-compressed-image-transport` 4.0.7 and deployed the versioned
+service definitions and launch scripts in `deploy/pi/`. Both `rover-camera` and
+`rover-foxglove` are enabled at boot and currently running as user `barry`, using
+`ROS_DOMAIN_ID=20` and `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`. Boot enablement
+is verified; a full reboot acceptance test remains outstanding. These paths are
+specific to this commissioned Pi and its `/home/barry/camera_ws` overlay.
+
+Camera output is 1280x720. The bridge serves raw images, compressed JPEG images,
+CameraInfo and diagnostics. The PC received a compressed camera message of
+332173 bytes via `ws://192.168.20.20:8765`. The first service start advertised
+topics but did not deliver frames; restarting both services restored delivery.
+If this recurs, inspect the journals and verify frame delivery, not just topic names.
+
+```bash
+sudo systemctl status rover-camera rover-foxglove
+journalctl -u rover-camera -u rover-foxglove -n 100 --no-pager
+sudo systemctl restart rover-camera rover-foxglove
+```
+
+Manual ROS inspection commands must use the same domain/discovery environment.
+Use `--no-daemon` where supported to avoid an old ROS CLI daemon's configuration.
+Direct PC Foxglove viewing uses the bridge WebSocket, so PC ROS/DDS installation
+is unnecessary. Future PC ROS command/perception nodes need a separately tested
+network configuration; the current local-only DDS scope is for camera visualization.
+
+Installed official Foxglove desktop 3.3.0 on the PC under `runtime/foxglove/`.
+Added the PC receiver, local Ollama inference, and annotated-frame publisher under
+`tools/pc/`. It uses the already installed `qwen2.5vl:7b` model, runs inference on
+the PC, and exposes `ws://127.0.0.1:8766` with live and analyzed-image topics.
+One real image was analyzed successfully in 84.6 seconds on the first call;
+subsequent warm calls took approximately 2.4–3.0 seconds at a five-second sampling
+interval. This is a scene-analysis experiment, not a frame-rate detector; model
+labels varied on the dim/noisy feed and box accuracy is unvalidated. The analyzed
+view retains the exact source frame to avoid applying stale overlays to live video.
+See [PC viewer instructions](../../tools/pc/README.md) for the launcher and layout
+import. GUI sign-in, layout import and visible rendering require user confirmation.
+
+The ESP32 has not arrived. UART and motor commissioning are deferred. Read-only
+inspection found an active `serial-getty@ttyAMA0` and `console=serial0,115200` in
+the boot command line. `/dev/serial0` is not currently a resolved device symlink.
+Confirm actual header pins and board revision before freeing/configuring a UART;
+no serial probes or movement commands were sent.
+
+### Video transport revision (2026-10-11)
+
+The PC viewer now uses an encoded H.264 stream instead of receiving ROS JPEG
+frames. The earlier JPEG path measured only 4.1 fps at 9.08 Mbps at the PC endpoint.
+The replacement measured 20.07 fps at 2.02 Mbps with the live channel advertised
+as `foxglove.CompressedVideo`. This is a throughput measurement; end-to-end visible
+latency still needs a physical camera-to-screen test.
+
+Added and enabled `rover-video.service`: it subscribes to local raw ROS camera
+images and encodes 1280x720 H.264 with FFmpeg/libx264 at 20 fps, targeting 2 Mbps.
+It uses zero-latency settings, no B-frames, repeated SPS/PPS, a one-second keyframe
+interval and zero MPEG-TS mux delay. Pi 5 uses software encoding in this setup.
+The encoder listens only at `127.0.0.1:8554`; the PC launcher opens an authenticated
+SSH tunnel using `pi.sshconfig.local`. No new LAN listener was added.
+
+The PC receiver demuxes the MPEG-TS stream, forwards H.264 access units to Foxglove
+and decodes frames locally with PyAV. Only sampled analysis frames and rendered
+overlay snapshots are converted to JPEG on the PC. Live packet timestamps are PC
+receive times, not calibrated capture timestamps. The existing `/pc/camera/live`
+topic and Foxglove layout remain in use. The ROS compressed-image topic is retained
+for diagnostics but is no longer part of the PC viewing/analysis path.
+
+The encoder supports one receiver at a time. Stop the background PC receiver before
+using `--once`; rerun the launcher if its SSH tunnel exits. The Pi encoder restarts
+after a client disconnect and the PC receiver retries. Check runtime logs for decoded
+fps and bitrate. Automatic boot recovery still requires the outstanding reboot test.
+
+Reference: [Foxglove encoded-video requirements](https://docs.foxglove.dev/docs/sdk/schemas/compressed-video).
 
 ## 5. Install ROS 2
 
@@ -362,14 +441,29 @@ Keep these assumptions visible until they are verified on actual hardware:
 
 ## 15. Next execution tasks
 
-When the hardware is available, the working sequence is:
+Current execution state and next steps:
+
+1. Ubuntu, ROS base, CSI capture and ROS camera publication are complete.
+2. Camera and Foxglove bridge services are deployed and enabled; verify automatic
+   recovery after a Pi reboot and repeat the PC compressed-frame check.
+3. Open the PC Foxglove client and import `tools/pc/foxglove-layout.json`; confirm
+   live video and the sampled-frame overlays in the GUI.
+4. Improve camera lighting, calibrate at the deployed resolution, then benchmark
+   local vision latency and accuracy. A smaller VLM or dedicated detector may be
+   needed for frequent overlays.
+5. Await the ESP32, then verify board revision, firmware, power and UART wiring.
+6. Resolve the serial console/device mapping, query status without motion, then
+   implement the serial driver and freshness gate against the confirmed protocol.
+7. Validate wheels-up motion, watchdog stops, crashes and network loss before floor tests.
+
+For a fresh Pi installation, the working sequence is:
 
 1. Image the SD card with Ubuntu Server 24.04 LTS 64-bit ARM.
 2. Boot and configure the Pi.
 3. Enable SSH and network.
 4. Install camera stack and verify the camera.
 5. Install ROS 2.
-6. Clone the Waveshare host and lower-computer source repos.
+6. Consult the matching Waveshare firmware source as a protocol reference; the host installer is optional and not part of this baseline.
 7. Verify the ESP32 board revision and firmware.
 8. Connect the Pi UART to the ESP32 and confirm the serial protocol.
 9. Run a simple low-speed JSON command with the wheels lifted.

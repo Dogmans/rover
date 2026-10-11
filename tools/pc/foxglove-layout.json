@@ -1,0 +1,30 @@
+{
+  "configById": {
+    "Image!live": {
+      "imageTopic": "/pc/camera/live",
+      "mode": "fit",
+      "synchronize": false,
+      "flipHorizontal": false,
+      "flipVertical": false,
+      "rotation": 0
+    },
+    "Image!analysis": {
+      "imageTopic": "/pc/camera/analyzed",
+      "mode": "fit",
+      "synchronize": false,
+      "flipHorizontal": false,
+      "flipVertical": false,
+      "rotation": 0
+    },
+    "RawMessages!result": {"topicPath": "/pc/vision/result"}
+  },
+  "globalVariables": {},
+  "userNodes": {},
+  "playbackConfig": {"speed": 1},
+  "layout": {
+    "direction": "column",
+    "first": {"direction": "row", "first": "Image!live", "second": "Image!analysis"},
+    "second": "RawMessages!result",
+    "splitPercentage": 75
+  }
+}
