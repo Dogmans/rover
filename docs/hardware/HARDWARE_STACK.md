@@ -2,8 +2,9 @@
 
 The rover's hardware selection lives in
 [`config/hardware/ugv02-pi5.json`](../../config/hardware/ugv02-pi5.json).
-This is a runtime profile, not just a parts list: the Pi camera service reads its
-driver and capture parameters from it. Hardware consumers use the shared ROS
+This is a runtime profile, not just a parts list: the repository camera launcher
+reads its driver and capture parameters from it. Deployment acceptance is tracked
+in [Feature status](../project/FEATURE_STATUS.md). Hardware consumers use shared ROS
 [interface constants](../../deploy/pi/rover_hardware/contracts.py), rather than
 depending on the sensor model or its serial protocol.
 
@@ -19,11 +20,12 @@ depending on the sensor model or its serial protocol.
 | Remote compute | Development PC | Wi-Fi/LAN, currently SSH video transport | Viewer and local vision prototype; [PC profile](DEVELOPMENT_PC_PROFILE.md) |
 | Power | Separate rated Pi bench supply; chassis battery arrangement to validate | Electrical power | Mobile supply and independent physical stop still to validate |
 
-The LD06 selection is recorded from the current project discussion. It does not
-establish receipt, mounting, electrical compatibility, driver compatibility or
-successful scan publication. Historical inventory and commissioning evidence
-remain in the [handoff](../project/ROVER_HANDOFF.md) and
-[commissioning plan](PI5_ROS_ESP32_SETUP_PLAN.md).
+LD06 is the selected 2D LiDAR. Selection does not establish receipt, mounting,
+electrical compatibility, driver compatibility or successful scan publication.
+Historical inventory and commissioning evidence
+remain in the [archived handoff](../archive/ROVER_HANDOFF_2026-10-04.md) and
+[dated commissioning record](../archive/COMMISSIONING_2026-10-11.md). Current
+procedures live in the [Pi guide](PI5_ROS_ESP32_SETUP_PLAN.md).
 
 The [IMU and encoder telemetry notes](UGV02_BASE_TELEMETRY.md) record the vendor
 commands, upstream firmware details and planned wheel-plus-IMU odometry. These
@@ -53,7 +55,9 @@ flowchart LR
     Video --> PC[PC viewer and perception]
 ```
 
-Solid paths are implemented; dashed paths need commissioning or implementation.
+Solid paths have repository implementations; dashed paths need commissioning
+or implementation. The camera stream was commissioned before the profile migration;
+this diagram does not establish deployment of the updated launcher.
 This diagram is for GitHub documentation. It does not add an operator UI feature.
 
 ## Hardware-independent interfaces
@@ -83,7 +87,8 @@ or changes to the mapping design.
 interface constants, the explicit adapter registry and individual drivers.
 
 - `drivers/camera_ros.py` launches the existing commissioned ROS camera node
-  with parameters from the profile. The camera systemd service uses this path.
+  with parameters from the profile. The repository camera service uses this path;
+  the updated Pi deployment still needs verification.
 - `drivers/ros_laserscan.py` launches a configured ROS node and maps its source
   scan topic and frame parameter to the common contract. It does not implement
   the LD06 serial protocol. Package, executable, source topic and frame parameter
@@ -97,7 +102,7 @@ The `enabled` flag permits an individual device to run; it does not automaticall
 start services. Each service has its own lifecycle. No all-devices launcher
 starts motors as a side effect of starting a sensor.
 
-## Inspect and install
+## Inspect a profile
 
 From the repository root, inspect the profile without ROS or hardware:
 
@@ -109,28 +114,21 @@ python -m rover_hardware --profile config/hardware/ugv02-pi5.json command camera
 python -m unittest discover -s deploy/pi -p 'test_*.py' -v
 ```
 
-On the commissioned Pi, the existing
-[`install-visualization.sh`](../../deploy/pi/install-visualization.sh) installs
-the package to `/opt/rover/rover_hardware` and initially copies the profile to
-`/etc/rover/hardware.json`. Subsequent installs validate and preserve that local
-profile. This installer still targets the commissioned `barry` user and camera
-workspace. Run it from a checkout containing both `deploy/pi` and `config/hardware`.
-The optional LiDAR service is installed but is not enabled or started by it.
+`command camera` prints the configured launch command without starting a device.
+`run camera` executes it in a prepared Pi ROS environment. Validation can confirm
+the profile shape and enabled driver settings, not physical sensor operation.
 
-```bash
-cd deploy/pi
-./install-visualization.sh
-PYTHONPATH=/opt/rover python3 -m rover_hardware describe
-PYTHONPATH=/opt/rover python3 -m rover_hardware check
-```
+The [Pi deployment procedure](PI5_ROS_ESP32_SETUP_PLAN.md#deploy-the-camera-services-on-the-commissioned-pi)
+owns installation and service commands. It installs code under `/opt/rover` and
+an initial active profile at `/etc/rover/hardware.json`, preserving that local
+profile on subsequent installs. Pulling Git does not itself change the active
+profile. Apply tracked profile changes deliberately through that procedure.
 
-To apply a tracked profile revision deliberately, validate it first, then copy
-it to `/etc/rover/hardware.json` and restart the affected service. Do not assume
-that pulling Git updates changes the active Pi profile. `ROVER_HARDWARE_PROFILE`
-can select an alternate profile; set it in a systemd drop-in for service use.
-`ROVER_CAMERA_SETUP` overrides the camera overlay setup file, and
-`ROVER_LIDAR_SETUP` can source a separately built LiDAR driver's overlay. With
-no LiDAR overlay set, its launcher uses the ROS Jazzy installation alone.
+`ROVER_HARDWARE_PROFILE` selects an alternate profile. `ROVER_CAMERA_SETUP` and
+`ROVER_LIDAR_SETUP` select ROS workspace overlays. Set these in the affected
+systemd service environment for service use; a shell-only export is not persistent
+service configuration. The current units/installer still target the commissioned
+`barry` user and camera workspace.
 
 ## Commission the LD06 or swap a LiDAR
 

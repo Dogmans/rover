@@ -1,61 +1,65 @@
 # Rover
 
-This project is developing an outdoor utility rover for hauling and towing garden equipment. Software and control are being prototyped first on a small Waveshare UGV02, with the longer-term goal of transferring the autonomy interfaces to a larger custom rover.
+An outdoor utility rover project for hauling and towing garden equipment. The
+software is being prototyped on a Waveshare UGV02 before transferring its driver
+interfaces and autonomy to a larger custom vehicle.
 
-The repository contains design and commissioning documentation, deployed Pi camera/bridge service definitions, and a PC Foxglove/local-vision prototype. Camera streaming is commissioned; the ESP32 has not arrived, so drive control remains planned.
+## Start here
 
-See the [feature status checklist](docs/project/FEATURE_STATUS.md) for implemented capabilities, outstanding validation, and work still to implement.
+Camera streaming and sampled PC scene analysis are the working prototype.
+Drive control, mapping, navigation and persistent object memory remain planned.
+The profile-driven camera launcher exists in the repository; its updated Pi
+deployment still needs verification. See [Feature status](docs/project/FEATURE_STATUS.md)
+for the current implementation, acceptance checks and next milestones.
 
-The [perception and semantic map design](docs/architecture/PERCEPTION_AND_SEMANTIC_MAP.md) describes the planned video/image transport, fast object sightings, saved image evidence, richer PC model annotations, and shared map memory for viewer and model decisions.
+| Read next | What it owns |
+| --- | --- |
+| [Hardware stack](docs/hardware/HARDWARE_STACK.md) | Selected components, hardware profiles and driver replacement |
+| [ROS architecture](docs/architecture/ROS_ARCHITECTURE.md) | Target component ownership, transport, navigation and command authority |
+| [Perception and semantic map](docs/architecture/PERCEPTION_AND_SEMANTIC_MAP.md) | Timestamped observations, fast detections, richer annotations and object memory |
+| [Pi commissioning guide](docs/hardware/PI5_ROS_ESP32_SETUP_PLAN.md) | Installation, service deployment and hardware verification procedures |
+| [PC viewer guide](tools/pc/README.md) | Run the current video and perception prototype |
 
-## Hardware Stack
+## How the system fits together
 
-The prototype uses a Raspberry Pi 5, Camera Module 3 Wide, a selected LD06 2D LiDAR, and a Waveshare UGV02/ESP32 base. The camera is commissioned; LiDAR and base integration remain pending.
-
-The [hardware stack overview](docs/hardware/HARDWARE_STACK.md) includes a diagram, current component status and the procedure for replacing a sensor. The versioned [hardware profile](config/hardware/ugv02-pi5.json) selects Pi drivers and their parameters; the camera launcher now reads it. Drivers expose stable ROS interfaces so a replacement sensor's protocol stays out of mapping and perception code. This profile migration still needs deployment and verification on the Pi.
-
-## How It Works
-
-The intended system keeps high-level intelligence on the PC and deterministic control on the rover. ROS 2/DDS carries commands, status, and camera data across the local network. On the Pi, a safety gate accepts only fresh, bounded commands; a project-owned ROS driver translates them to the ESP32's UART JSON protocol. The ESP32 runs the low-level motor controller.
+The PC runs visual inference and mission-level decisions. The target Pi stack
+owns mapping, localization, navigation, map storage and local motion checks;
+the ESP32 handles motor control and onboard sensor feedback. The selected
+hardware is a Pi 5, Camera Module 3 Wide, LD06 and UGV02/ESP32 with onboard IMU
+and encoders. Ubuntu Server 24.04 ARM64 and ROS 2 Jazzy have passed camera
+capture/publication commissioning on the current Pi.
 
 ```mermaid
 flowchart LR
-	Operator[Operator and local model] --> Mission[PC mission executive]
-	Mission <-->|ROS 2 / DDS| Pi[Pi 5: ROS 2 and safety gate]
-	Camera[CSI camera] --> Pi
-	Lidar[Selected LD06 LiDAR] -. integration pending .-> Pi
-	Pi -->|UART JSON| ESP[Waveshare ESP32]
-	ESP --> Motors[Drive motors and encoder feedback]
-	Pi -->|video, status, feedback| Mission
-	Safety[Independent physical stop] -. future hardware requirement .-> Motors
+    Camera[CSI camera] --> Pi[Pi camera and video services]
+    Pi -->|Working H.264 preview over SSH| PC[PC viewer and perception]
+    Pi -. Planned observations and map state .-> PC
+    PC -. Planned annotations and bounded task goals .-> Robot[Pi mapping, navigation and command gate]
+    Robot -. Planned UART JSON driver .-> ESP[ESP32 motor controller and sensors]
+    Lidar[Selected LD06] -. Commissioning pending .-> Robot
 ```
 
-The model proposes bounded task-level actions; it does not send motor PWM or write directly to the serial interface. The Pi must stop motion when commands expire or a fault is detected. Any physical emergency stop must operate independently of the PC, ROS, and model.
+Solid arrows show the working camera path; dashed arrows show future integration.
+The proposed perception/map transport uses ROS interfaces through a WebSocket
+adapter over SSH. ROS-native PC components can use DDS; the exact manual-control
+and task-action transport still needs commissioning. See the architecture for
+these separate paths.
 
-## Current Baseline
+In the target design, PC detection supplies quick object sightings; a larger vision-language model
+adds richer meaning to selected saved images. The Pi stores validated semantic
+records alongside the geometric map. A remembered viewing position is distinct
+from a measured object position. Models query that memory and propose bounded
+tasks; movement remains under ordinary navigation and the Pi command gate.
 
-- Prototype: Waveshare UGV02 6x4 chassis, Raspberry Pi 5, and Camera Module 3 Wide.
-- Selected 2D LiDAR: LD06; driver and physical integration uncommissioned and disabled in the hardware profile.
-- Pi software baseline: Ubuntu Server 24.04 ARM64 and ROS 2 Jazzy, subject to passing the CSI camera capture and ROS image-publication test.
-- Base interface: retain factory ESP32 firmware initially; implement a thin Pi-side ROS-to-JSON serial bridge because Waveshare's `ugv_base_ros` repository is firmware, not a ROS 2 host driver.
-- PC role: operator interface, perception, and mission-level model; ordinary navigation and safety software constrain movement.
-- Local development PC details: [development PC profile](docs/hardware/DEVELOPMENT_PC_PROFILE.md). These describe one test machine, not a required deployment specification.
-- Status: Pi camera capture and ROS publication are verified, with camera/bridge services enabled. Foxglove visualization and local vision inference run on the PC. Board revision, UART pinout and mobile Pi power budget await ESP32/chassis commissioning.
-- Video and analysis: [PC viewer setup](tools/pc/README.md). Run `./tools/pc/start-viewer.ps1`, then import its supplied Foxglove layout.
+## Supporting documents
 
-## Read The Docs
+[Project goals and rationale](docs/project/PROJECT_NOTES.md) explain the staged
+utility-rover objective. [Model research](docs/research/ACTION_MODEL_RESEARCH.md)
+compares candidates, and [external references](docs/research/EXTERNAL_REFERENCES.md)
+index upstream sources. [Archived records](docs/archive/README.md) preserve older
+plans and commissioning evidence; they are not current setup instructions.
 
-Suggested order for a new contributor or coding session:
-
-Start with the [hardware stack](docs/hardware/HARDWARE_STACK.md) for the current parts, runtime profile and driver boundaries.
-
-1. [Project notes](docs/project/PROJECT_NOTES.md): goals, current decisions, staged implementation plan, and remaining unknowns.
-2. [Project handoff](docs/project/ROVER_HANDOFF.md): hardware inventory, assumptions, and constraints to recheck.
-3. [Pi and ESP32 commissioning](docs/hardware/PI5_ROS_ESP32_SETUP_PLAN.md): selected software baseline and bench bring-up sequence.
-4. [ROS architecture](docs/architecture/ROS_ARCHITECTURE.md): nodes, data and command paths, ownership, and failure behavior.
-5. [Action model research](docs/research/ACTION_MODEL_RESEARCH.md): PC-side model recommendation and bounded action interface.
-6. [External references](docs/research/EXTERNAL_REFERENCES.md): vendor, platform, and research sources.
-
-## Safety And Verification
-
-Do not infer the delivered board revision or connect unverified power/UART pins from a product listing. Use a separate, appropriately rated Pi supply during bench bring-up. First movement tests must be low speed with the wheels raised, and the ESP32's documented heartbeat timeout is only a backup to the faster Pi-side command timeout. The rover is not ready for autonomous operation until stop behavior, command freshness, power stability, and camera/data paths have been tested.
+Hardware verification includes delivered board identity, power/UART wiring,
+measured sensor behavior and independent stopping. Before floor tests, validate
+command expiry, faults and stops with the wheels raised. The feature checklist
+records what still needs to pass before autonomous operation.

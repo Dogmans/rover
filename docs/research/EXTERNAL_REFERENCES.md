@@ -1,6 +1,10 @@
 # External references for Pi 5 / ROS 2 / UGV02 setup
 
-These are the primary vendor and platform references used to shape the configuration plan.
+This is a source index, not a setup procedure or runtime specification. The
+[architecture](../architecture/ROS_ARCHITECTURE.md) owns selected direction,
+[hardware stack](../hardware/HARDWARE_STACK.md) owns parts, and
+[model research](ACTION_MODEL_RESEARCH.md) owns candidate assessment. Upstream
+content can change; dated evidence remains in the [archive](../archive/README.md).
 
 ## Waveshare
 
@@ -40,14 +44,17 @@ These are the primary vendor and platform references used to shape the configura
 - Physical Intelligence open π models: https://github.com/Physical-Intelligence/openpi
 - Meta V-JEPA 2 research and checkpoints: https://github.com/facebookresearch/vjepa2
 - LeRobot robotics models, datasets, and policy framework: https://github.com/huggingface/lerobot
-- ROS 2 Navigation (Nav2): https://github.com/ros-navigation/navigation2
 
 The rover-specific assessment and recommendation are recorded in [ACTION_MODEL_RESEARCH.md](ACTION_MODEL_RESEARCH.md). Model availability, checkpoints, hardware requirements, and licenses can change; recheck upstream documentation before selecting or deploying a model.
 
-## Notes from the official references
+## Navigation and transport
 
-- Waveshare UGV02 exposes UART/JSON control to the host computer, and the host communicates with the ESP32 over GPIO UART at 115200 baud.
-- The ROS Driver board is not the same as a ROS-native controller; a host-side ROS driver or adapter is required.
-- The host-side UGV Pi repo includes installation and autorun scripts for the Raspberry Pi side.
-- Raspberry Pi OS Bookworm uses the modern libcamera/rpicam stack; the legacy raspistill stack is deprecated and should not be the target path.
-- The Pi camera module is an official CSI camera and must be used via the modern Raspberry Pi camera stack.
+- ROS 2 Navigation (Nav2): https://github.com/ros-navigation/navigation2
+- SLAM Toolbox: https://github.com/SteveMacenski/slam_toolbox
+- State-estimation/fusion package: https://github.com/cra-ros-pkg/robot_localization
+- Windows-compatible ROS transport candidate: https://github.com/RobotWebTools/rosbridge_suite/tree/ros2
+- ROS message definitions: https://github.com/ros2/common_interfaces/tree/jazzy
+
+Package presence in this index does not imply installation or rover validation.
+Firmware behavior and sensor conversion findings are recorded in
+[UGV02 base telemetry](../hardware/UGV02_BASE_TELEMETRY.md), not duplicated here.

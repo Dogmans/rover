@@ -1,7 +1,10 @@
 # PC camera visualization and local analysis
 
-The Pi runs ROS 2, camera_ros, an H.264 encoder, and foxglove_bridge. Foxglove desktop, the vision model,
-and overlay rendering run on the Windows PC. No ESP32 is needed for this path.
+This guide owns operation of the current Windows video/perception prototype.
+The Pi runs ROS 2, camera_ros, an H.264 encoder and an optional diagnostic bridge.
+The PC runs YOLO detection, Ollama scene descriptions and Foxglove presentation.
+The normal video path uses SSH and does not require the ESP32 or a PC ROS install.
+See [Feature status](../../docs/project/FEATURE_STATUS.md) for acceptance work.
 
 The proposed next stage is [timestamped perception and semantic object memory](../../docs/architecture/PERCEPTION_AND_SEMANTIC_MAP.md): independent detection and model workers, saved object crops/full frames, measured location where available, asynchronous richer PC annotations, and shared map queries. This is a design, not an implemented feature; the current video pipeline still uses PC packet-arrival timestamps and has no semantic map write/read connection.
 
@@ -16,8 +19,8 @@ In Foxglove, sign in if requested, then use **Layouts > Import from file** and c
 `ws://127.0.0.1:8766`. If the app does not connect automatically, choose
 **Open connection > Foxglove WebSocket** and enter that URL.
 
-The layout provides live video, the sampled frame with model-generated boxes and
-description, and the JSON result. If an Image panel does not select its topic after
+The layout provides live video, a sampled frame with YOLO detector boxes and
+a Qwen scene description, and the structured JSON result. If an Image panel does not select its topic after
 import, select `/pc/camera/live` or `/pc/camera/analyzed` in its panel settings.
 The layout import and visible panel rendering still need confirmation in the GUI.
 
@@ -29,9 +32,8 @@ port over authenticated SSH; no new camera port is exposed on the LAN.
 The PC demuxes MPEG-TS, forwards H.264 packets to Foxglove as
 `foxglove.CompressedVideo`, and decodes frames with PyAV for local sampling.
 JPEGs are created only for sampled model inputs and annotated snapshot output.
-Measured after migration: 20.1 decoded fps at approximately 2.03 Mbps,
-versus the previous JPEG viewer measurement of 4.1 fps and 9.08 Mbps.
-This verifies throughput, not complete camera-to-screen latency.
+The [archived transport measurements](../../docs/archive/COMMISSIONING_2026-10-11.md#video-transport-revision-2026-10-11)
+record throughput; visible camera-to-screen latency still needs measurement.
 Live timestamps represent PC packet reception, not calibrated camera capture time.
 
 The video stream supports one PC receiver. Stop the background pipeline before
@@ -45,7 +47,8 @@ the local API at `127.0.0.1:11434`. It samples the newest available frame after 
 inference; it does not queue old images. The analyzed view shows the exact frame used
 for inference, rather than applying delayed predictions to current video. Boxes are
 produced by the local YOLO11s detector, with labels and confidence scores from that
-same detection. Qwen supplies only the scene summary. Detector coordinates are
+same detection. Qwen supplies a scene summary, references to supplied detection
+IDs and uncertainties. Detector coordinates are
 in original-image pixels; the renderer never interprets Qwen coordinates or pairs
 Qwen labels with detector boxes. The summary sits above the image rather than
 obscuring its top edge. There is no connection from model output to motor control.
@@ -102,16 +105,11 @@ and records `coordinate_space`, `image_size`, `detector` and `detection_seconds`
 in `runtime/analysis.json`. Labels remain predictions and need evaluation on
 representative rover imagery, especially with low light, blur or unusual viewpoints.
 
-Validation on 2026-10-11: boxes visually aligned with the bus and people in the
-official Ultralytics example, including its portrait aspect ratio. The saved dim
-rover frame had no detections above the threshold. The Pi was unreachable during
-this change, so live validation of the new detector remains outstanding.
-
-The first real-frame test on 2026-10-11 took 84.6 seconds and produced a description
-and object boxes. Subsequent warm calls took approximately 2.4–3.0 seconds, with
-sampling every five seconds. This is a sampled scene-analysis overlay, not a
-frame-rate detector. Labels varied on the dim, noisy test image. Improve scene lighting before evaluating
-accuracy; a smaller vision model or dedicated detector is a subsequent benchmark.
+The [archived detector/initial inference evidence](../../docs/archive/COMMISSIONING_2026-10-11.md)
+records sample-image checks, the earlier real-frame model trial and their limits.
+The current combined pipeline still needs live rover validation. This is sampled
+scene analysis, not frame-rate detection; improve lighting and benchmark on
+representative frames before relying on its descriptions or labels.
 
 Inspect `runtime/vision.stderr.log` for current results and failures. The latest
 source image, annotated image and JSON result are saved under `runtime/`, ignored

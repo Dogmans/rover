@@ -1,3 +1,10 @@
+# Historical planning handoff: 4 October 2026
+
+Archived planning snapshot. Hardware status, transport choices and requested next
+steps below may be superseded. Use the [current architecture](../architecture/ROS_ARCHITECTURE.md),
+[hardware stack](../hardware/HARDWARE_STACK.md) and [feature status](../project/FEATURE_STATUS.md)
+for the active project. The original discussion record follows.
+
 # Rover project — configuration and planning handoff
 
 Updated: 4 October 2026. This captures decisions from a discussion, not a tested configuration. Use this as context for a VS Code coding agent to produce a detailed implementation plan. Do not treat proposed OS choices or unverified hardware specifications as settled.

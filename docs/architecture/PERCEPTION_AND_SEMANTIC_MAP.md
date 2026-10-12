@@ -1,8 +1,10 @@
 # Video, PC perception and semantic object memory
 
 Reviewed: 2026-10-12. Proposed design, not an implemented or deployed pipeline.
-It extends the [ROS architecture](ROS_ARCHITECTURE.md) and incorporates the
-two-stage object-annotation approach discussed for this project.
+The [ROS architecture](ROS_ARCHITECTURE.md) owns component placement, transport
+selection and command authority. This document owns the detailed observation,
+object-memory and semantic-enrichment contracts. Implementation/deployment status
+and project build order are maintained in [Feature status](../project/FEATURE_STATUS.md).
 
 ## Recommended division of work
 
@@ -345,23 +347,28 @@ and Python SDK; current upstream documentation may describe newer behavior.
 A future task-focused operator app can read the same cache/API. Map queries and
 PC inference must work with Foxglove closed.
 
-## Implementation sequence and acceptance
+## Perception integration and acceptance
 
-1. Separate detector and large-model workers; demonstrate prompt detection
-   results with a deliberately slow/failed model.
-2. Implement source-time image/context bundles and the Windows transport;
-   measure latency/queues/bandwidth/CPU and preserve image-only operation when
-   pose/calibration is absent. Replay motion to catch arrival-pose mistakes.
-3. Implement candidate sightings, curated image/crop evidence, semantic queries
-   and asynchronous enrichment. Test identical retry, conflicting edits, moved
-   objects and enrichment bound to an older snapshot. Positions may stay unknown.
-4. Commission LD06, odometry/localization, camera intrinsics and sensor mounts;
-   validate grounding against known objects and report measured error. Ambiguous
-   wall returns, below-plane objects and invalid calibration stay unpositioned.
-5. Add map/object viewer layers and verify reset, marker deletion, cache recovery
-   and SLAM-coordinate corrections; preserve rich labels when geometry expires.
-6. Connect queries/enrichment to bounded inspection/search/navigation tasks.
-   Verify that stale sightings trigger reacquisition rather than assumed presence.
+Follow the [project milestones](../project/FEATURE_STATUS.md#suggested-next-sequence)
+for base, localization and navigation dependencies. Image-only perception and
+candidate-memory development can proceed earlier, with unavailable geometry
+explicitly marked. This section lists subsystem acceptance evidence, not another
+project build order.
+
+- Detector results remain prompt with a deliberately slow/failed large model;
+  image/model work does not block preview or map synchronization.
+- Source image IDs/timestamps, dimensions, calibration and frozen context survive
+  transport. Motion replay detects an arrival-pose substitution. Measure queues,
+  latency, bandwidth and combined Pi load.
+- Candidate records retain curated full frames/crops. Identical retries,
+  conflicting edits, moved objects and delayed enrichment preserve identity and
+  original observation time.
+- Grounding against known objects reports measured error/uncertainty. Ambiguous
+  wall returns, below-plane objects and invalid calibration stay unpositioned.
+- Viewer markers reset/delete correctly; the cache recovers after event gaps,
+  restart and map/SLAM corrections. Rich labels survive geometry invalidation.
+- Task queries lead to validated inspection/search/navigation, with stale sightings
+  triggering reacquisition rather than assumed presence.
 
 Record source images, transforms/scans, detections, proposals and commit results
 with clock domains/revisions for deterministic replay. Video alone cannot

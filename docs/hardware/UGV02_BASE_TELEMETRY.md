@@ -61,11 +61,10 @@ driver contract.
 
 ## Planned mapping and movement use
 
-Use encoder odometry plus the onboard gyro as the initial short-term motion
-estimate on the Pi, with one authoritative odometry/fusion node. Evaluate
-`robot_localization` for this role. Let LiDAR SLAM refine map-relative pose and
-handle loop closures; Nav2 consumes the resulting map, pose and velocity.
-IMU integration does not provide an accurate standalone distance meter.
+The [architecture](../architecture/ROS_ARCHITECTURE.md#maps-localization-and-sensor-frames)
+assigns encoder/IMU odometry, LiDAR mapping/localization and navigation to the Pi.
+Fusion/navigation packages are candidates to validate, not already commissioned
+components. IMU integration does not provide an accurate standalone distance meter.
 
 Start with verified angular velocity for turn estimation; include additional
 orientation/acceleration/magnetometer fields only when their quality and frames
