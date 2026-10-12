@@ -362,7 +362,12 @@ Plan the following ROS nodes:
 4. `camera_node`
    - publishes camera feed and camera info using the Pi camera stack
 5. `odom_node`
-   - fuses wheel encoder and IMU data, if available
+   - fuses verified wheel encoder and onboard IMU data; the controller board
+     includes an ICM-20948, with telemetry conversion/quality to commission
+
+See [UGV02 onboard IMU and encoder telemetry](UGV02_BASE_TELEMETRY.md) for the
+documented JSON interface and upstream firmware details. Do not assume raw
+IMU values already have ROS units or that returned orientation is valid.
 
 Do not implement multiple duplicate differential-drive or odometry stacks. Keep a single source-of-truth for velocity representation and one consistent odometry node.
 

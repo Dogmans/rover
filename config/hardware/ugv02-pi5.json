@@ -41,6 +41,17 @@
       "model": "Waveshare UGV02 6x4 / ESP32 controller",
       "connection": "UART JSON; delivered board, firmware and pins to verify",
       "status": "planned; driver and safety gate not implemented",
+      "onboard_sensors": {
+        "imu": {
+          "model": "ICM-20948 9-axis IMU",
+          "connection": "On controller board; ESP32 telemetry over shared UART JSON",
+          "status": "documented onboard; ROS publication and fusion uncommissioned"
+        },
+        "encoders": {
+          "connection": "Controller feedback for left and right drive",
+          "status": "documented; direction, scale and slip behavior to validate"
+        }
+      },
       "enabled": false,
       "driver": null,
       "driver_config": {}

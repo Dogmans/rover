@@ -15,6 +15,7 @@ depending on the sensor model or its serial protocol.
 | Camera | Raspberry Pi Camera Module 3 Wide | CSI, `camera_ros` | Streaming commissioned; calibration and mounting transform still needed |
 | 2D LiDAR | LD06 | Serial; wiring and device path to verify | Selected; no installed/working driver recorded; disabled in the profile |
 | Base and motor controller | Waveshare UGV02 6x4 and ESP32 | UART JSON | Board/firmware commissioning, driver and safety gate pending |
+| Onboard inertial sensing | ICM-20948 9-axis IMU on the ESP32 controller board | Shared ESP32 UART telemetry | Documented hardware; ROS publication, sensor scaling/timing and fusion pending |
 | Remote compute | Development PC | Wi-Fi/LAN, currently SSH video transport | Viewer and local vision prototype; [PC profile](DEVELOPMENT_PC_PROFILE.md) |
 | Power | Separate rated Pi bench supply; chassis battery arrangement to validate | Electrical power | Mobile supply and independent physical stop still to validate |
 
@@ -23,6 +24,11 @@ establish receipt, mounting, electrical compatibility, driver compatibility or
 successful scan publication. Historical inventory and commissioning evidence
 remain in the [handoff](../project/ROVER_HANDOFF.md) and
 [commissioning plan](PI5_ROS_ESP32_SETUP_PLAN.md).
+
+The [IMU and encoder telemetry notes](UGV02_BASE_TELEMETRY.md) record the vendor
+commands, upstream firmware details and planned wheel-plus-IMU odometry. These
+onboard sensors are recorded under the base in the runtime profile and share
+its future serial adapter.
 
 ```mermaid
 flowchart LR

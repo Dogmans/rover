@@ -3,6 +3,8 @@
 The Pi runs ROS 2, camera_ros, an H.264 encoder, and foxglove_bridge. Foxglove desktop, the vision model,
 and overlay rendering run on the Windows PC. No ESP32 is needed for this path.
 
+The proposed next stage is [timestamped perception and semantic object memory](../../docs/architecture/PERCEPTION_AND_SEMANTIC_MAP.md): independent detection and model workers, saved object crops/full frames, measured location where available, asynchronous richer PC annotations, and shared map queries. This is a design, not an implemented feature; the current video pipeline still uses PC packet-arrival timestamps and has no semantic map write/read connection.
+
 From the repository root:
 
 ```powershell

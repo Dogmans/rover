@@ -5,6 +5,7 @@ These are the primary vendor and platform references used to shape the configura
 ## Waveshare
 
 - UGV02 product documentation: https://www.waveshare.com/wiki/UGV02
+- UGV02 IMU/encoder interface findings and source links: [base telemetry notes](../hardware/UGV02_BASE_TELEMETRY.md)
 - UGV Rover PI ROS2 overview: https://www.waveshare.com/wiki/UGV_Rover_PI_ROS2
 - Upper computer example repo: https://github.com/waveshareteam/ugv_rpi
 - Lower computer ESP32 ROS driver repo: https://github.com/waveshareteam/ugv_base_ros

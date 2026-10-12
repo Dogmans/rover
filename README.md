@@ -6,6 +6,8 @@ The repository contains design and commissioning documentation, deployed Pi came
 
 See the [feature status checklist](docs/project/FEATURE_STATUS.md) for implemented capabilities, outstanding validation, and work still to implement.
 
+The [perception and semantic map design](docs/architecture/PERCEPTION_AND_SEMANTIC_MAP.md) describes the planned video/image transport, fast object sightings, saved image evidence, richer PC model annotations, and shared map memory for viewer and model decisions.
+
 ## Hardware Stack
 
 The prototype uses a Raspberry Pi 5, Camera Module 3 Wide, a selected LD06 2D LiDAR, and a Waveshare UGV02/ESP32 base. The camera is commissioned; LiDAR and base integration remain pending.
