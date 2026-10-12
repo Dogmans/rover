@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Run from this directory on the commissioned ROBOT Pi.
+# Deploy rover launchers, hardware configuration and systemd services on the Pi.
+# Run from a full project checkout with ROS and the camera workspace prepared.
 set -euo pipefail
 cd -- "$(dirname -- "$0")"
 test -f "${ROVER_CAMERA_SETUP:-/home/barry/camera_ws/install/setup.bash}"

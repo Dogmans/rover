@@ -56,7 +56,7 @@ exporting a shell variable alone does not change a systemd service environment.
 
 The exact camera source-build commands and local compatibility patch were not
 captured as a reproducible installer. Reconstructing/recording them is a remaining
-fresh-install reproducibility task; `install-visualization.sh` assumes a working
+fresh-install reproducibility task; `install-services.sh` assumes a working
 ROS/camera workspace and does not install those prerequisites.
 
 Waveshare's full `ugv_rpi` host installer is not part of this procedure. Its code
@@ -104,7 +104,7 @@ From the Pi checkout, inspect the tracked profile before installation:
 PYTHONPATH=deploy/pi python3 -m rover_hardware --profile config/hardware/ugv02-pi5.json check
 PYTHONPATH=deploy/pi python3 -m rover_hardware --profile config/hardware/ugv02-pi5.json command camera
 cd deploy/pi
-bash ./install-visualization.sh
+bash ./install-services.sh
 ```
 
 The installer requires working ROS, the camera overlay and non-interactive sudo.
