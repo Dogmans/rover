@@ -6,6 +6,12 @@ The repository contains design and commissioning documentation, deployed Pi came
 
 See the [feature status checklist](docs/project/FEATURE_STATUS.md) for implemented capabilities, outstanding validation, and work still to implement.
 
+## Hardware Stack
+
+The prototype uses a Raspberry Pi 5, Camera Module 3 Wide, a selected LD06 2D LiDAR, and a Waveshare UGV02/ESP32 base. The camera is commissioned; LiDAR and base integration remain pending.
+
+The [hardware stack overview](docs/hardware/HARDWARE_STACK.md) includes a diagram, current component status and the procedure for replacing a sensor. The versioned [hardware profile](config/hardware/ugv02-pi5.json) selects Pi drivers and their parameters; the camera launcher now reads it. Drivers expose stable ROS interfaces so a replacement sensor's protocol stays out of mapping and perception code. This profile migration still needs deployment and verification on the Pi.
+
 ## How It Works
 
 The intended system keeps high-level intelligence on the PC and deterministic control on the rover. ROS 2/DDS carries commands, status, and camera data across the local network. On the Pi, a safety gate accepts only fresh, bounded commands; a project-owned ROS driver translates them to the ESP32's UART JSON protocol. The ESP32 runs the low-level motor controller.
@@ -15,6 +21,7 @@ flowchart LR
 	Operator[Operator and local model] --> Mission[PC mission executive]
 	Mission <-->|ROS 2 / DDS| Pi[Pi 5: ROS 2 and safety gate]
 	Camera[CSI camera] --> Pi
+	Lidar[Selected LD06 LiDAR] -. integration pending .-> Pi
 	Pi -->|UART JSON| ESP[Waveshare ESP32]
 	ESP --> Motors[Drive motors and encoder feedback]
 	Pi -->|video, status, feedback| Mission
@@ -26,6 +33,7 @@ The model proposes bounded task-level actions; it does not send motor PWM or wri
 ## Current Baseline
 
 - Prototype: Waveshare UGV02 6x4 chassis, Raspberry Pi 5, and Camera Module 3 Wide.
+- Selected 2D LiDAR: LD06; driver and physical integration uncommissioned and disabled in the hardware profile.
 - Pi software baseline: Ubuntu Server 24.04 ARM64 and ROS 2 Jazzy, subject to passing the CSI camera capture and ROS image-publication test.
 - Base interface: retain factory ESP32 firmware initially; implement a thin Pi-side ROS-to-JSON serial bridge because Waveshare's `ugv_base_ros` repository is firmware, not a ROS 2 host driver.
 - PC role: operator interface, perception, and mission-level model; ordinary navigation and safety software constrain movement.
@@ -36,6 +44,8 @@ The model proposes bounded task-level actions; it does not send motor PWM or wri
 ## Read The Docs
 
 Suggested order for a new contributor or coding session:
+
+Start with the [hardware stack](docs/hardware/HARDWARE_STACK.md) for the current parts, runtime profile and driver boundaries.
 
 1. [Project notes](docs/project/PROJECT_NOTES.md): goals, current decisions, staged implementation plan, and remaining unknowns.
 2. [Project handoff](docs/project/ROVER_HANDOFF.md): hardware inventory, assumptions, and constraints to recheck.

@@ -1,6 +1,6 @@
 # Feature status
 
-Last reviewed: 2026-10-11.
+Last reviewed: 2026-10-12.
 
 This is the central checklist of implemented capabilities and remaining work. It
 summarizes repository code and recorded commissioning results; it is not a fresh
@@ -21,6 +21,7 @@ listed separately below; these entries do not imply readiness for autonomous use
 | Feature | Current capability | Evidence / implementation |
 | --- | --- | --- |
 | Pi OS and ROS runtime | Ubuntu Server 24.04 ARM64 and ROS 2 Jazzy installed on the commissioned Pi. | [Commissioning results](../hardware/PI5_ROS_ESP32_SETUP_PLAN.md#observed-commissioning-result-2026-10-11) |
+| Hardware profile and replaceable sensor adapters | Versioned hardware selection, shared ROS topic contracts and profile-driven camera launcher; generic ROS LaserScan adapter and optional disabled LiDAR service. Repository implementation; updated deployment not yet verified on the Pi. | [Hardware stack](../hardware/HARDWARE_STACK.md), [Pi adapters](../../deploy/pi/rover_hardware/), [hardware profile](../../config/hardware/ugv02-pi5.json) |
 | CSI camera capture and ROS publication | Camera Module 3 Wide still/video capture verified; raw images and uncalibrated CameraInfo published at approximately 30 Hz. | [Camera commissioning](../hardware/PI5_ROS_ESP32_SETUP_PLAN.md#observed-commissioning-result-2026-10-11), [camera launcher](../../deploy/pi/rover-camera.sh) |
 | Persistent Pi camera and bridge services | Versioned systemd units and installer; camera, Foxglove bridge and video encoder enabled at boot. | [Deployment installer](../../deploy/pi/install-visualization.sh), [service commissioning](../hardware/PI5_ROS_ESP32_SETUP_PLAN.md#persistent-video-and-pc-analysis-setup-2026-10-11) |
 | Pi ROS observability bridge | Foxglove WebSocket bridge exposes camera topics and diagnostics on the trusted LAN. | [Bridge launcher](../../deploy/pi/rover-foxglove.sh), [bridge check](../../deploy/pi/check-foxglove.ps1) |
@@ -39,6 +40,7 @@ hardware are in the next section.
 
 | Check | Remaining work |
 | --- | --- |
+| Profile-driven Pi deployment | Install updated package/profile and verify the camera/video services on the Pi; existing camera evidence predates the profile migration. |
 | Pi boot and stream recovery | Reboot and verify all three services deliver frames; exercise disconnect/reconnect and inspect the earlier topic-advertisement-without-frames issue. |
 | Foxglove GUI | Confirm sign-in, layout import, topic selection and visible live/analyzed panel rendering. |
 | Latest perception pipeline on live video | Validate the YOLO and structured Qwen revisions together on the live rover feed; the Pi was unreachable during those updates. Sample-image checks and an earlier real-frame inference are recorded. |
@@ -56,6 +58,7 @@ design documentation, not evidence that the corresponding runtime exists.
 
 | Area | Remaining features / acceptance work | Design reference |
 | --- | --- | --- |
+| LD06 LiDAR | Verify wiring, power and serial path; select/install the real ROS driver; configure and enable the adapter; verify `/scan` units, timing, QoS and `lidar_link` mounting transform. | [Hardware stack and swap procedure](../hardware/HARDWARE_STACK.md) |
 | Chassis, UART and mobile power | Receive and identify the ESP32/driver board; verify firmware, pins, electrical levels and protocol; configure the UART; validate batteries and the Pi supply under load. | [Commissioning plan](../hardware/PI5_ROS_ESP32_SETUP_PLAN.md) |
 | ROS base driver and telemetry | Implement Pi ROS-to-JSON UART bridge, status parsing and bounded velocity output against the verified factory firmware. | [ROS architecture](../architecture/ROS_ARCHITECTURE.md) |
 | Motion safety and control ownership | Implement Pi command mux/safety gate, manual/autonomy ownership, bounds, command expiry, watchdogs and fault stops; verify communication-loss behavior and the independent physical stop path before floor tests. | [ROS architecture](../architecture/ROS_ARCHITECTURE.md) |

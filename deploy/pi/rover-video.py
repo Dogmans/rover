@@ -5,13 +5,14 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import Image
+from rover_hardware.contracts import CAMERA_IMAGE_TOPIC
 
 
 class Video(Node):
     def __init__(self):
         super().__init__('rover_video')
         self.encoder = None
-        self.subscription = self.create_subscription(Image, '/camera/image_raw', self.frame,
+        self.subscription = self.create_subscription(Image, CAMERA_IMAGE_TOPIC, self.frame,
                                                      qos_profile_sensor_data)
 
     def frame(self, msg):

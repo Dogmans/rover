@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "profile": "ugv02-pi5",
+  "host": {
+    "model": "Raspberry Pi 5",
+    "os": "Ubuntu Server 24.04 ARM64",
+    "ros_distribution": "jazzy"
+  },
+  "devices": {
+    "camera": {
+      "model": "Raspberry Pi Camera Module 3 Wide",
+      "connection": "CSI",
+      "status": "commissioned; intrinsics and mounting transform not calibrated",
+      "enabled": true,
+      "driver": "camera_ros",
+      "driver_config": {
+        "parameters": {
+          "camera": 0,
+          "role": "video",
+          "format": "BGR888",
+          "width": 1280,
+          "height": 720
+        }
+      }
+    },
+    "lidar": {
+      "model": "LD06",
+      "connection": "Serial; wiring and stable device path to verify",
+      "status": "selected; driver, installation and scan output not commissioned",
+      "enabled": false,
+      "driver": "ros_laserscan",
+      "driver_config": {
+        "package": null,
+        "executable": null,
+        "scan_topic": null,
+        "frame_parameter": null,
+        "parameters": {}
+      }
+    },
+    "base": {
+      "model": "Waveshare UGV02 6x4 / ESP32 controller",
+      "connection": "UART JSON; delivered board, firmware and pins to verify",
+      "status": "planned; driver and safety gate not implemented",
+      "enabled": false,
+      "driver": null,
+      "driver_config": {}
+    }
+  }
+}

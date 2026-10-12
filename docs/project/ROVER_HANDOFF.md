@@ -12,6 +12,10 @@ The user wants to go straight to ROS 2. Do not make Waveshare's browser applicat
 
 ## Hardware inventory
 
+This inventory is historical. See the [current hardware stack](../hardware/HARDWARE_STACK.md)
+and [runtime profile](../../config/hardware/ugv02-pi5.json) for current sensor
+selection, including the LD06, and commissioning status.
+
 | Item | Status | Details |
 | --- | --- | --- |
 | Waveshare UGV02 6x4 chassis | Ordered | User ordered following discussion of The Pi Hut listing below. Confirm actual order/SKU and board when delivered. Listing SKU WAV-25077, £144 at time checked. Six wheels, outer four powered; independent left/right drive. |

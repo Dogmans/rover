@@ -10,6 +10,23 @@ This document defines the intended communication architecture for the UGV02 prot
 - Keep the future rover's autonomy interfaces independent of its eventual drivetrain.
 - Make data ownership and command direction unambiguous.
 
+## Hardware profiles and driver boundary
+
+The current [hardware stack](../hardware/HARDWARE_STACK.md) and versioned
+[Pi profile](../../config/hardware/ugv02-pi5.json) define component selection and
+commissioning status. Pi-side adapters live in
+[`rover_hardware`](../../deploy/pi/rover_hardware/); camera capture already uses
+this profile. Keep hardware protocols and vendor parameters inside adapters,
+while consumers use the shared [ROS contracts](../../deploy/pi/rover_hardware/contracts.py).
+
+The selected LD06 is not commissioned. Its future adapter must expose
+`sensor_msgs/msg/LaserScan` on `/scan` in `lidar_link`; mapping/localization consumes
+that interface. A replacement 2D LiDAR should change the profile, driver dependency
+or adapter and mounting calibration without adding model-specific logic to
+mapping, navigation or PC perception. The current generic LaserScan adapter can
+configure an existing ROS node; it is not an LD06 protocol implementation. Base
+control, TF/mount calibration and mapping remain planned.
+
 ## System context
 
 ```mermaid
